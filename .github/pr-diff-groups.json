@@ -1,0 +1,23 @@
+{
+	"version": 1,
+	"output": "pr-body",
+	"groups": [
+		{
+			"id": "documentation",
+			"label": "ドキュメント",
+			"includeSuffixes": [".md"]
+		},
+		{
+			"id": "tests",
+			"label": "テスト",
+			"includeSuffixes": [".test.ts"]
+		},
+		{
+			"id": "runtime",
+			"label": "実行コード",
+			"includeSuffixes": [".ts"],
+			"excludeSuffixes": [".test.ts"]
+		}
+	],
+	"fallbackLabel": "その他"
+}

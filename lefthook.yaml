@@ -1,0 +1,33 @@
+pre-commit:
+  parallel: false
+  commands:
+    betterleaks:
+      run: betterleaks git --staged --no-banner --redact=20
+    biome:
+      glob: "*.{json,jsonc}"
+      run: biome format --write --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    yamlfmt:
+      glob: "*.{yaml,yml}"
+      run: |
+        set -e
+        yamlfmt {staged_files}
+        yamlfmt -lint {staged_files}
+      stage_fixed: true
+    markdownlint:
+      glob: "*.md"
+      run: |
+        set -e
+        prettier --write --ignore-unknown {staged_files}
+        markdownlint-cli2 {staged_files}
+      stage_fixed: true
+    tombi:
+      glob: "*.toml"
+      run: |
+        set -e
+        tombi format {staged_files}
+        tombi lint --offline {staged_files}
+      stage_fixed: true
+    actionlint:
+      glob: ".github/workflows/*.{yaml,yml}"
+      run: actionlint {staged_files}

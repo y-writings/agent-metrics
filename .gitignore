@@ -1,0 +1,5 @@
+# start driftline from y-writings/templates/.driftline/contract.toml
+# DO NOT EDIT: this section is managed automatically by driftline.
+.gh
+.opencode/plugins/entire.ts
+# end driftline

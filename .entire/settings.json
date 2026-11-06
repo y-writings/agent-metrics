@@ -1,0 +1,11 @@
+{
+  "commit_linking": "always",
+  "enabled": true,
+  "strategy_options": {
+    "checkpoint_remote": {
+      "provider": "github",
+      "repo": "y-writings/entire-checkpoint"
+    }
+  },
+  "telemetry": false
+}

@@ -1,0 +1,103 @@
+name: "[00] Weekly merged PRs report"
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      calver_date:
+        description: Optional override in YYYY.MM.DD format for manual recovery.
+        required: false
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: weekly-changelog-update-main
+  cancel-in-progress: false
+jobs:
+  update-changelog:
+    name: Update weekly changelog and enable auto-merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create pull request creator GitHub App token
+        id: pr-creator-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PR_CREATOR_APP_ID }}
+          private-key: ${{ secrets.PR_CREATOR_APP_PRIVATE_KEY }}
+      - name: Check out repository for changelog generation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ steps.pr-creator-token.outputs.token }}
+      - name: Create weekly CalVer tag through GitHub API
+        id: calver-tag
+        uses: y-writings/calver-beacon-action@5c556d48d005deb28080da1ad82b712d75a9dddb # v2026.06.15
+        with:
+          calver_date: ${{ inputs.calver_date }}
+          tag_prefix: weekly-
+          target_ref: main
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
+      - name: Prepare git-cliff inputs
+        id: cliff-range
+        if: ${{ steps.calver-tag.outputs.created == 'true' }}
+        env:
+          TAG: ${{ steps.calver-tag.outputs.tag }}
+          PREVIOUS_TAG: ${{ steps.calver-tag.outputs.previous_tag }}
+        run: |
+          git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+
+          if [ -n "${PREVIOUS_TAG}" ]; then
+            echo "range=${PREVIOUS_TAG}..${TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "range=" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Generate WEEKLY_MERGED_PULL_REQUESTS.md from release tag range
+        if: ${{ steps.calver-tag.outputs.created == 'true' }}
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
+        with:
+          config: cliff.toml
+          args: --verbose --tag ${{ steps.calver-tag.outputs.tag }} --output WEEKLY_MERGED_PULL_REQUESTS.md ${{ steps.cliff-range.outputs.range }}
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
+      - name: Create or update changelog pull request
+        id: changelog-pull-request
+        if: ${{ steps.calver-tag.outputs.created == 'true' }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.pr-creator-token.outputs.token }}
+          add-paths: |
+            WEEKLY_MERGED_PULL_REQUESTS.md
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          branch: automation/update-changelog
+          base: main
+          commit-message: "docs(changelog): update changelog"
+          delete-branch: true
+          title: "docs(changelog): update changelog"
+          body: |
+            ## Summary
+            - regenerate `WEEKLY_MERGED_PULL_REQUESTS.md` from `${{ steps.cliff-range.outputs.range }}`
+            - generated after `${{ steps.calver-tag.outputs.tag }}` was created on `main`
+            - auto-merge is enabled after automated validation
+      - name: Create changelog approver GitHub App token
+        id: approver-token
+        if: ${{ steps.changelog-pull-request.outputs.pull-request-number != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PR_APPROVER_APP_ID }}
+          private-key: ${{ secrets.PR_APPROVER_APP_PRIVATE_KEY }}
+      - name: Verify, approve, and enable auto-merge for changelog pull request
+        if: ${{ steps.changelog-pull-request.outputs.pull-request-number != '' }}
+        uses: y-writings/pr-seal-action@def2623a8f12edd497ce0108c348bc2f01e39be1 # v0.1.1
+        with:
+          repository: ${{ github.repository }}
+          pull-request-number: ${{ steps.changelog-pull-request.outputs.pull-request-number }}
+          expected-author: y-writings-pr-creator-bot
+          allowed-paths: |
+            WEEKLY_MERGED_PULL_REQUESTS.md
+          approve-token: ${{ steps.approver-token.outputs.token }}
+          merge-token: ${{ steps.pr-creator-token.outputs.token }}
+          merge-method: squash
+          approve-body: Automated approval for WEEKLY_MERGED_PULL_REQUESTS.md-only release PR.

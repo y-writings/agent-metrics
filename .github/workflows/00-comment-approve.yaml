@@ -1,0 +1,58 @@
+name: "[00] Approve pull request from comment"
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  approve:
+    name: Approve pull request
+    if: >-
+      github.event.issue.pull_request && github.event.issue.state == 'open' && github.event.comment.user.login == 'y-writings' && github.event.comment.body == 'approve'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create approver GitHub App token
+        id: approver-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PR_APPROVER_APP_ID }}
+          private-key: ${{ secrets.PR_APPROVER_APP_PRIVATE_KEY }}
+          permission-pull-requests: write
+      - name: Approve pull request
+        uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4.0.0
+        with:
+          pull-request-number: ${{ github.event.issue.number }}
+          github-token: ${{ steps.approver-token.outputs.token }}
+  approve-docs-and-config:
+    name: Approve documentation or config pull request
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: ${{ github.workflow }}-docs-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Create approver GitHub App token
+        id: approver-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PR_APPROVER_APP_ID }}
+          private-key: ${{ secrets.PR_APPROVER_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+      - name: Approve documentation or non-executable config
+        id: seal
+        uses: y-writings/pr-seal-action@def2623a8f12edd497ce0108c348bc2f01e39be1 # v0.1.1
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          require-expected-author: false
+          path-preset: docs-and-config
+          auto-merge: false
+          on-ineligible: skip
+          approve-token: ${{ steps.approver-token.outputs.token }}
+          merge-token: ${{ steps.approver-token.outputs.token }}
+          approve-body: Automated approval because every changed file is documentation or non-executable configuration.

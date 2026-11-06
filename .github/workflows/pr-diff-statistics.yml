@@ -1,0 +1,19 @@
+name: PR diff statistics
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: pr-diff-statistics-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  update-output:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: y-writings/pr-diff-lens-action@25c3dfdc157688d98bd0effdc58dc54930e77084 # v0.1.0
+        with:
+          github-token: ${{ github.token }}
+          config-path: .github/pr-diff-groups.json

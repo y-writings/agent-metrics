@@ -1,0 +1,135 @@
+name: "[00] Entire checkpoint collection"
+on:
+  pull_request_target:
+    types: [opened, synchronize, edited, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  update-pr-body:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Collect checkpoints and update PR body
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const heading = "## Entire checkpoints";
+            const emptyMessage = "_No Entire checkpoints found._";
+
+            function inspectLines(body) {
+              const lines = [];
+              let offset = 0;
+              let fence = null;
+              for (const match of body.matchAll(/[^\n]*(?:\n|$)/g)) {
+                if (match[0] === "") continue;
+                const raw = match[0];
+                const text = raw.replace(/\n$/, "").replace(/\r$/, "");
+                const wasFenced = fence !== null;
+                if (fence) {
+                  const close = text.match(/^ {0,3}(`+|~+)[ \t]*$/);
+                  if (close && close[1][0] === fence.character && close[1].length >= fence.length) fence = null;
+                } else {
+                  const open = text.match(/^ {0,3}(`{3,})([^`]*)$/) || text.match(/^ {0,3}(~{3,})(.*)$/);
+                  if (open) fence = { character: open[1][0], length: open[1].length };
+                }
+                lines.push({ start: offset, text, outside: !wasFenced && fence === null });
+                offset += raw.length;
+              }
+              return { lines, closed: fence === null };
+            }
+            function isH1OrH2(line) {
+              return line.outside && /^ {0,3}#{1,2}(?:[ \t]+|$)/.test(line.text);
+            }
+            function append(body, addition, eol) {
+              if (body === "") return addition;
+              if (body.endsWith(eol + eol)) return body + addition;
+              if (body.endsWith(eol)) return body + eol + addition;
+              return body + eol + eol + addition;
+            }
+            function updateBody(body, checkpoints) {
+              const eol = body.includes("\r\n") ? "\r\n" : "\n";
+              const section = [heading, "", checkpoints.length ? checkpoints.join(eol) : emptyMessage].join(eol);
+              const inspected = inspectLines(body);
+              if (!inspected.closed) return { error: "PR body has an unclosed Markdown code fence." };
+              const { lines } = inspected;
+              const headings = lines.flatMap((line, i) =>
+                isH1OrH2(line) && line.text.trim() === heading ? [i] : [],
+              );
+              if (headings.length > 1) return { error: "PR body has duplicate Entire checkpoint sections." };
+              if (headings.length === 0) return { body: append(body, section, eol) };
+              const headingIndex = headings[0];
+              let nextHeading = -1;
+              let paragraphStart = -1;
+              let inListOrQuote = false;
+              for (let i = headingIndex + 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (isH1OrH2(line)) {
+                  nextHeading = i;
+                  break;
+                }
+                if (line.outside && paragraphStart !== -1 && /^ {0,3}(?:=+|-+)[ \t]*$/.test(line.text)) {
+                  nextHeading = paragraphStart;
+                  break;
+                }
+                if (
+                  !line.outside || /^[ \t]*$/.test(line.text) ||
+                  /^ {0,3}#{1,6}(?:[ \t]+|$)/.test(line.text) ||
+                  /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/.test(line.text)
+                ) {
+                  paragraphStart = -1;
+                  inListOrQuote = false;
+                  continue;
+                }
+                const list = line.text.match(/^ {0,3}([-+*]|\d{1,9}[.)])(?:[ \t]+(.*)|$)/);
+                if (
+                  /^ {0,3}>/.test(line.text) ||
+                  (list && (paragraphStart === -1 || (list[2] && /^(?:[-+*]|1[.)])$/.test(list[1]))))
+                ) {
+                  paragraphStart = -1;
+                  inListOrQuote = true;
+                  continue;
+                }
+                if (!inListOrQuote && paragraphStart === -1 && !/^(?: {4}| {0,3}\t)/.test(line.text)) {
+                  paragraphStart = i;
+                }
+              }
+              if (nextHeading === -1) return { body: body.slice(0, lines[headingIndex].start) + section };
+              return {
+                body: body.slice(0, lines[headingIndex].start) + section + eol + eol + body.slice(lines[nextHeading].start),
+              };
+            }
+
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const { data: initialPr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            const baseSha = initialPr.base.sha;
+            const headSha = initialPr.head.sha;
+            const commits = await github.paginate(
+              github.rest.repos.compareCommitsWithBasehead,
+              { owner, repo, basehead: `${baseSha}...${headSha}`, per_page: 100 },
+              (response) => response.data.commits,
+            );
+            const checkpoints = [...new Set(
+              commits.flatMap((commit) => (commit.commit.message || "").split(/\r?\n/))
+                .map((line) => line.trim()).filter((line) => /^Entire-Checkpoint:\s*\S+/.test(line)),
+            )].sort((a, b) => a.localeCompare(b));
+            const { data: latestPr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            if (latestPr.base.sha !== baseSha || latestPr.head.sha !== headSha) {
+              core.warning("PR base or head changed while checkpoints were collected; skipping stale update.");
+              return;
+            }
+            const currentBody = latestPr.body || "";
+            const result = updateBody(currentBody, checkpoints);
+            if (result.error) {
+              core.warning(`${result.error} PR body was not changed.`);
+              return;
+            }
+            if (result.body === currentBody) {
+              core.info("PR body already up-to-date.");
+              return;
+            }
+            await github.rest.pulls.update({ owner, repo, pull_number, body: result.body });
+            core.info(`Updated PR #${pull_number} with ${checkpoints.length} checkpoint(s).`);

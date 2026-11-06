@@ -1,0 +1,34 @@
+version = 2
+
+[source]
+repository = "y-writings/templates"
+ref = "main"
+
+[files.CONTRIBUTING]
+contributing = "CONTRIBUTING.md"
+
+[files.LICENSE]
+license = "LICENSE"
+
+[files.configs]
+lefthook = "lefthook.yaml"
+pinact = ".pinact.yaml"
+tombi = "tombi.toml"
+
+[files.entire]
+gitignore = ".entire/.gitignore"
+opencode-plugin = ".opencode/plugins/entire.ts"
+settings = ".entire/settings.json"
+
+[files.github]
+comment-approve = ".github/workflows/00-comment-approve.yaml"
+entire-checkpoint-collection = ".github/workflows/00-entire-checkpoint-collection.yaml"
+pr-diff-statistics = ".github/workflows/pr-diff-statistics.yml"
+pull-request-template = ".github/pull_request_template.md"
+security-scan = ".github/workflows/00-security-scan.yaml"
+semantic-pr-check = ".github/workflows/00-semantic-pr-check.yaml"
+weekly-merged-prs-report = ".github/workflows/00-weekly-merged-prs-report.yaml"
+
+[files.mise]
+baseline-config = ".mise/config.baseline.toml"
+miserc = ".miserc.toml"
