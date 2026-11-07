@@ -137,6 +137,18 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 	for id := range ambiguous {
 		r.partial("ambiguous_execution_link", fmt.Sprintf("execution %s is shared by multiple agents; its delegation links cannot be resolved", id))
 	}
+	includedAgents := map[string]bool{}
+	for key := range included {
+		includedAgents[key.agent] = true
+	}
+	for _, e := range events {
+		if !includedAgents[e.Session] || e.Execution != "" {
+			continue
+		}
+		if e.Kind == "usage" || e.Input != nil || e.CacheRead != nil || e.CacheWrite != nil || e.Output != nil || e.Reasoning != nil || e.Total != nil {
+			r.partial("unscoped_usage", fmt.Sprintf("usage record %s for agent %s has no execution or task/turn ID", e.ID, e.Session))
+		}
+	}
 	by := map[executionKey][]adapter.Event{}
 	for _, e := range events {
 		key := executionKey{e.Execution, e.Session}

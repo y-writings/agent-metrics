@@ -98,7 +98,9 @@ values must stay unknown with a diagnostic rather than being guessed.
 Completeness can only guarantee what records expose. Explicitly referenced but
 missing descendants, missing terminal boundaries, malformed files, usage with
 no counters, and unknown model attribution make a report partial. If a product
-emits no spawn reference at all, local records cannot prove that an unseen
+record names an included agent but has usage counters without an execution or
+task/turn ID, its usage remains unattributed and the report is partial. If a
+product emits no spawn reference at all, local records cannot prove that an unseen
 child did not exist; this is a source-format limitation rather than evidence of
 complete subtree collection.
 

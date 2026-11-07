@@ -61,6 +61,38 @@ func TestCollectScopesFallbackExecutionToAgent(t *testing.T) {
 	}
 }
 
+func TestCollectDiagnosesUnscopedUsageWithoutAttributingIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "records.jsonl")
+	data := `{"id":"start","agent_id":"parent","execution_id":"run","kind":"execution_start","timestamp":"2026-01-01T00:00:00Z"}
+{"id":"parent-use","agent_id":"parent","execution_id":"run","kind":"usage","model":"m","usage":{"input":2}}
+{"id":"parent-unscoped","agent_id":"parent","kind":"usage","model":"m","usage":{"input":99}}
+{"id":"child-start","agent_id":"child","execution_id":"child-run","parent_execution_id":"run","kind":"execution_start","timestamp":"2026-01-01T00:00:00Z"}
+{"id":"child-use","agent_id":"child","execution_id":"child-run","kind":"usage","model":"m","usage":{"input":3}}
+{"id":"child-unscoped","agent_id":"child","kind":"assistant","model":"m","usage":{"input":50}}
+{"id":"child-end","agent_id":"child","execution_id":"child-run","kind":"execution_end","timestamp":"2026-01-01T00:00:01Z"}
+{"id":"end","agent_id":"parent","execution_id":"run","kind":"execution_end","timestamp":"2026-01-01T00:00:02Z"}
+{"id":"other-unscoped","agent_id":"other","kind":"usage","model":"m","usage":{"input":100}}
+`
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	a, err := adapter.New("codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	events, warnings, err := a.Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := Collect(a.Name(), "parent", "run", events, warnings)
+	if r.Completeness != "partial" || len(r.Usage.Self) != 1 || *r.Usage.Self[0].Tokens.Input != 2 || len(r.Usage.Subtree) != 1 || *r.Usage.Subtree[0].Tokens.Input != 5 {
+		t.Fatalf("unscoped usage must remain unattributed and make the report partial: %+v", r)
+	}
+	if len(r.Diagnostics) != 2 || r.Diagnostics[0].Code != "unscoped_usage" || r.Diagnostics[1].Code != "unscoped_usage" {
+		t.Fatalf("only included agents' unscoped usage should be diagnosed: %+v", r.Diagnostics)
+	}
+}
+
 func TestCollectProjectsReferencedSpawnOntoChild(t *testing.T) {
 	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	es := []adapter.Event{
