@@ -1,95 +1,117 @@
 # agent-metrics
 
-`agent-metrics` is a read-only Go CLI that creates task-scoped metrics from
-JSON/JSONL exports using the envelope below and aliases associated with Claude
-Code, Codex, and OpenCode V2. It never emits prompt/message/tool bodies. Direct
-ingestion of each product's native storage layout is not yet validated.
+`agent-metrics` is a read-only Go CLI for measuring **one sub-agent task
+execution**. It reports information that cannot be judged from the artifact
+alone: wall-clock time and token usage for the target itself and for its whole
+explicitly delegated subtree. It neither orchestrates tasks nor scores output.
+Prompt/message contents, tool arguments/results, and credentials are never
+copied to the report.
 
-## Build and run
+## Build and collect
 
 ```sh
 go build ./...
 go test ./...
-go run ./cmd/agent-metrics -product codex -records records.jsonl \
-  -parent THREAD_ID -task TURN_ID
+
+# A new sub-agent with exactly one recorded invocation
+agent-metrics collect --product codex --agent AGENT_ID
+
+# A reused agent must name the invocation
+agent-metrics collect --product codex --agent AGENT_ID --execution EXECUTION_ID
+
+# Fixture, export, or nonstandard installation
+agent-metrics collect --product codex --agent AGENT_ID \
+  --execution EXECUTION_ID --records ./records
 ```
 
-Products are `claude-code`, `codex`, and `opencode-v2`. `-records` accepts a
-file or recursively scans a directory for `.json` and `.jsonl` files. Supply
-Claude's parent session ID and task ID, Codex's thread and turn IDs, or
-OpenCode's parent session and task IDs from the export. The product option labels
-the report; all three currently use the same envelope reader.
+Products are `claude-code`, `codex`, and `opencode-v2`. Without `--records`,
+the search roots are respectively `~/.claude/projects`, `~/.codex/sessions`,
+and `~/.local/share/opencode/storage`. Record files are only read. A directory
+is recursively scanned for `.json` and `.jsonl` files.
 
-## Record mapping and scope
+The identifier returned by sub-agent creation is passed to `--agent`. If its
+records contain one execution, it is selected. If the same agent was invoked
+more than once, collection returns `incomplete` with an
+`ambiguous_execution` diagnostic containing the selectable IDs; it never picks
+the latest invocation or measures the whole session implicitly.
 
-The reader accepts native aliases (`session_id`/`sessionID`/`thread_id`,
-`parent_id`/`parentID`/`parent_thread_id`, and `task_id`/`taskID`/`turn_id`).
-Boundaries are `task_start`/`task_end` or `turn_start`/`turn_end`. Usage may be
-under `usage`, `tokens`, or a message's usage object, regardless of record type.
-Usage-bearing boundary records retain their lifecycle meaning. Descendants are
-followed recursively using parent links from the exact selected task/turn only.
-Child records must retain that task ID and a stable parent link. Historical links
-cannot pull a reused child into an unrelated task tree.
+## Record connection and supported scope
 
-Example `records.jsonl` (synthetic normalized export):
+Adapters normalize lifecycle and usage metadata only. Accepted identifier
+aliases include `agent_id`/`session_id`/`thread_id`, `execution_id`/
+`invocation_id`/`run_id`, `parent_execution_id`, and `child_execution_id`.
+`task_id` and `turn_id` remain source identifiers; they are not required to be
+equal between parent and child. A missing `execution_id` falls back to the
+record's task/turn ID for export fixtures.
+
+An execution subtree is followed only through explicit
+`parent_execution_id` or `child_execution_id` references. Timestamps, working
+directories, and similar coincidental attributes are never used to infer a
+relationship. Consequently parent preparation, sibling trials, earlier/later
+invocations, and orchestrator usage are excluded, while explicitly delegated
+descendants are recursive. A referenced execution without records produces a
+`missing_descendant` diagnostic.
+
+> **Current validation scope:** the adapters support the documented metadata
+> aliases in JSON/JSONL records. The default roots make native record discovery
+> possible, but the current fixtures are synthetic rather than captures from
+> released Claude Code, Codex, or OpenCode V2 builds. Product-version-specific
+> native layouts that do not expose these fields are reported as unsupported;
+> they are not treated as complete results.
+
+## Schema 2.0
+
+The command emits schema `2.0`:
+
+* `target` identifies the product, requested agent, resolved execution, and
+  source session/thread.
+* `timing` is the target execution's explicit start-to-terminal wall clock,
+  with definitions and source record IDs. Descendant durations are not added.
+* `usage.self` is target-only usage; `usage.subtree` is target plus all resolved
+  descendants, grouped by provider and model.
+* `executions[]` contains each invocation's execution and agent IDs, parent
+  execution, spawn/start/end/elapsed values, state, own usage, and source IDs.
+* `status` is execution outcome. `completeness` (`complete`, `partial`, or
+  `incomplete`) independently describes whether the metric is conclusive, and
+  `diagnostics` gives machine-readable reasons.
+
+Start boundaries are `execution_start` or `task_start`; terminal boundaries are
+`execution_end` or `task_end`. A final log timestamp and spawn time are never
+substituted. Missing timestamps or reversed boundaries leave elapsed time
+`null`. Target elapsed time remains available when descendant data is partial.
+A failure is an execution state and does not by itself mean that observed data
+is incomplete.
+
+Usage preserves input, cache read/write, output, reasoning, and total counters.
+These are separate observations: cache/reasoning values are not added again to
+total. Missing is `null`, while observed zero is `0`. Events are deduplicated by
+source ID within an execution, and usage is combined only after execution
+scope is resolved. Cumulative counters are scoped per execution/provider/model;
+exports must provide execution-normalized deltas (or a baseline and derived
+increment) rather than a session-lifetime snapshot. If a reliable baseline,
+counter meaning, reset, or model attribution cannot be established, affected
+values must stay unknown with a diagnostic rather than being guessed.
+
+Completeness can only guarantee what records expose. Explicitly referenced but
+missing descendants, missing terminal boundaries, malformed files, usage with
+no counters, and unknown model attribution make a report partial. If a product
+emits no spawn reference at all, local records cannot prove that an unseen
+child did not exist; this is a source-format limitation rather than evidence of
+complete subtree collection.
+
+## Safe fixture example
+
+Fixtures should contain metadata and numeric counters only—never real prompt,
+message, tool, or authentication content:
 
 ```jsonl
-{"id":"start","session_id":"THREAD_ID","task_id":"TURN_ID","kind":"turn_start","timestamp":"2026-01-01T00:00:00Z"}
-{"id":"usage","session_id":"THREAD_ID","task_id":"TURN_ID","kind":"usage","provider":"openai","model":"example-model","usage":{"input":10,"output":2}}
-{"id":"end","session_id":"THREAD_ID","task_id":"TURN_ID","kind":"turn_end","timestamp":"2026-01-01T00:00:01Z"}
+{"id":"start","agent_id":"AGENT_ID","execution_id":"RUN_ID","kind":"execution_start","timestamp":"2026-01-01T00:00:00Z"}
+{"id":"usage","agent_id":"AGENT_ID","execution_id":"RUN_ID","kind":"usage","provider":"openai","model":"example-model","usage":{"input":10,"output":2,"total":12}}
+{"id":"end","agent_id":"AGENT_ID","execution_id":"RUN_ID","kind":"execution_end","timestamp":"2026-01-01T00:00:01Z","status":"completed"}
 ```
 
-Token fields map to input, cache read, cache write, output, reasoning, and
-total. These are independent observations: cache and reasoning fields are
-**not** added to total. Missing fields remain `null`. Duplicate event IDs are
-counted once within each agent. For records marked `cumulative: true`, the latest
-snapshot by timestamp per agent/provider/model replaces that agent's increments
-for the same provider/model. Dated snapshots take precedence over undated ones;
-equal timestamps (including when both are absent) retain input order as a
-tie-breaker. Agent-level results are then summed; one agent's snapshot never
-replaces another's usage.
-
-Records without an event ID use the scan-root-relative file path and record
-number as their source ID, so same-named files in different directories remain
-distinct. For a single-file input, the source path is its filename.
-
-## JSON schema and incomplete data
-
-Output schema `1.0` contains the selected task, parent wall-clock timing (RFC 3339
-timestamps with explicit offsets and milliseconds), aggregate usage by
-provider/model, and each agent's parent, spawn time, status, usage, and source
-event IDs. Parallel
-child durations are never summed. Completion time requires an explicit parent
-terminal event; the final log timestamp is not substituted.
-Boundary timestamps must be valid RFC 3339 values in chronological order.
-Missing or reversed timestamps leave elapsed time `null` and make the report
-partial; an observed terminal event still determines execution status.
-
-`status` describes execution, while `completeness` independently reports
-`complete`, `partial`, or `incomplete`. Diagnostics explain missing boundaries,
-unknown models or usage, corrupt records, and unmatched tasks. Known zero is `0`;
-absent data is `null`. A missing/non-persisted child cannot always be detected from
-local logs, so completeness is guaranteed only when every spawn and descendant
-record has a stable parent/task link and explicit terminal record. An observed
-descendant without a terminal event makes the report partial with a
-`missing_terminal` diagnostic, even when the parent has completed.
-If JSONL decoding fails, already decoded records remain available and the warning
-makes the report partial. The reader does not skip ahead past malformed records.
-Records without a session identifier generate a warning. Explicit usage events
-without any observed counters remain unknown and produce `unknown_usage` rather
-than a complete zero-usage report.
-
-An agent's latest terminal event determines its status, defaulting to `completed`
-when that event omits status. Without a terminal, the latest timestamped explicit
-status is used. Equal timestamps retain the first encountered status, consistently
-with parent terminal selection.
-
-## Validation scope
-
-Automated tests use synthetic, anonymized records reproducing the documented
-field shapes. They cover descendants, parallel-safe wall time, model changes,
-duplicate usage, prior-turn exclusion, cumulative snapshots, reused-child
-scoping, and missing terminal events. No claim is made that these fixtures are
-captured real logs or that arbitrary product-native formats are supported.
-Records need explicit session/task identifiers and the documented field shapes;
-unmatched tasks produce a diagnostic rather than inferred relationships.
+Automated tests separate common selection/aggregation contracts from adapter
+normalization. Synthetic fixtures verify reused-agent ambiguity, independent
+parent/child turn IDs, exclusion of historical executions, recursive scope,
+deduplication, missing data, and wall-clock boundaries. They are not presented
+as evidence of end-to-end compatibility with a particular product release.

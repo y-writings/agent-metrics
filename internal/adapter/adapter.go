@@ -13,32 +13,53 @@ import (
 
 type Event struct {
 	ID, Session, Parent, Task, Kind, Provider, Model, Status string
-	Time                                                     time.Time
-	Input, CacheRead, CacheWrite, Output, Reasoning, Total   *int64
-	Cumulative                                               bool
+	// Execution and ParentExecution identify one invocation. They deliberately do
+	// not have to match the agent/session's turn identifier.
+	Execution, ParentExecution, ReferencedExecution        string
+	Time                                                   time.Time
+	Input, CacheRead, CacheWrite, Output, Reasoning, Total *int64
+	Cumulative                                             bool
 }
 
 type Adapter interface {
 	Name() string
+	DefaultRecords() string
 	Parse(path string) ([]Event, []string, error)
 }
 
 func New(product string) (Adapter, error) {
 	switch strings.ToLower(product) {
 	case "claude", "claude-code":
-		return native{name: "claude-code"}, nil
+		return claudeCode{}, nil
 	case "codex":
-		return native{name: "codex"}, nil
+		return codex{}, nil
 	case "opencode", "opencode-v2":
-		return native{name: "opencode-v2"}, nil
+		return openCode{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported product %q", product)
 	}
 }
 
-type native struct{ name string }
+type native struct{ name, defaultPath string }
 
-func (n native) Name() string { return n.name }
+type claudeCode struct{ native }
+type codex struct{ native }
+type openCode struct{ native }
+
+func (claudeCode) Name() string           { return "claude-code" }
+func (codex) Name() string                { return "codex" }
+func (openCode) Name() string             { return "opencode-v2" }
+func (claudeCode) DefaultRecords() string { return "~/.claude/projects" }
+func (codex) DefaultRecords() string      { return "~/.codex/sessions" }
+func (openCode) DefaultRecords() string   { return "~/.local/share/opencode/storage" }
+func (a claudeCode) Parse(p string) ([]Event, []string, error) {
+	return native{name: a.Name()}.Parse(p)
+}
+func (a codex) Parse(p string) ([]Event, []string, error)    { return native{name: a.Name()}.Parse(p) }
+func (a openCode) Parse(p string) ([]Event, []string, error) { return native{name: a.Name()}.Parse(p) }
+
+func (n native) Name() string           { return n.name }
+func (n native) DefaultRecords() string { return n.defaultPath }
 func (n native) Parse(path string) ([]Event, []string, error) {
 	var files []string
 	info, err := os.Stat(path)
@@ -115,7 +136,10 @@ func parseFile(path, product, source string) ([]Event, []string, error) {
 func normalize(v map[string]any, product, path string, line int) (Event, bool) {
 	// Fixtures and exports may use a normalized envelope. Product-native aliases are
 	// deliberately read without retaining message/tool bodies.
-	e := Event{ID: str(v, "id", "uuid", "event_id"), Session: str(v, "session_id", "sessionID", "thread_id", "threadId", "agentId"), Parent: str(v, "parent_id", "parentID", "parent_thread_id"), Task: str(v, "task_id", "taskID", "turn_id", "turnId"), Kind: str(v, "kind", "type"), Provider: str(v, "provider"), Model: str(v, "model"), Status: str(v, "status")}
+	e := Event{ID: str(v, "id", "uuid", "event_id"), Session: str(v, "agent_id", "agentId", "session_id", "sessionID", "thread_id", "threadId"), Parent: str(v, "parent_agent_id", "parent_id", "parentID", "parent_thread_id"), Task: str(v, "task_id", "taskID", "turn_id", "turnId"), Execution: str(v, "execution_id", "executionId", "invocation_id", "run_id"), ParentExecution: str(v, "parent_execution_id", "parentExecutionId", "parent_invocation_id"), ReferencedExecution: str(v, "child_execution_id", "childExecutionId", "spawned_execution_id"), Kind: str(v, "kind", "type"), Provider: str(v, "provider"), Model: str(v, "model"), Status: str(v, "status")}
+	if e.Execution == "" {
+		e.Execution = e.Task
+	}
 	if e.ID == "" {
 		e.ID = fmt.Sprintf("%s:%d", path, line)
 	}
