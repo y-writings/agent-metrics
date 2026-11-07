@@ -28,11 +28,14 @@ func TestCollectExecutionTreeWithIndependentTurnIDs(t *testing.T) {
 	if r.Timing.ElapsedMilliseconds == nil || *r.Timing.ElapsedMilliseconds != 2000 {
 		t.Fatalf("timing: %+v", r.Timing)
 	}
+	if r.Target.SessionID != nil {
+		t.Fatalf("missing source session must remain null: %+v", r.Target)
+	}
 }
 
 func TestCollectScopesFallbackExecutionToAgent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "records.jsonl")
-	data := `{"id":"start-a","agent_id":"a","task_id":"shared","kind":"task_start","timestamp":"2026-01-01T00:00:00Z"}
+	data := `{"id":"start-a","agent_id":"a","session_id":"source-session","task_id":"shared","kind":"task_start","timestamp":"2026-01-01T00:00:00Z"}
 {"id":"use-a","agent_id":"a","task_id":"shared","kind":"usage","model":"m","usage":{"input":2}}
 {"id":"end-a","agent_id":"a","task_id":"shared","kind":"task_end","timestamp":"2026-01-01T00:00:01Z"}
 {"id":"use-b","agent_id":"b","task_id":"shared","kind":"usage","model":"m","usage":{"input":99}}
@@ -50,7 +53,7 @@ func TestCollectScopesFallbackExecutionToAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := Collect(a.Name(), "a", "", events, warnings)
-	if r.Completeness != "complete" || len(r.Executions) != 1 || r.Executions[0].AgentID != "a" || len(r.Executions[0].SourceIDs) != 3 {
+	if r.Completeness != "complete" || r.Target.AgentID != "a" || r.Target.SessionID == nil || *r.Target.SessionID != "source-session" || len(r.Executions) != 1 || r.Executions[0].AgentID != "a" || len(r.Executions[0].SourceIDs) != 3 {
 		t.Fatalf("shared fallback ID must select only agent a: %+v", r)
 	}
 	if len(r.Usage.Self) != 1 || r.Usage.Self[0].Tokens.Input == nil || *r.Usage.Self[0].Tokens.Input != 2 || len(r.Usage.Subtree) != 1 || *r.Usage.Subtree[0].Tokens.Input != 2 {

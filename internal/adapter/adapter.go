@@ -13,6 +13,7 @@ import (
 
 type Event struct {
 	ID, Session, Parent, Task, Kind, Provider, Model, Status string
+	SourceSession                                            string
 	// Execution and ParentExecution identify one invocation. They deliberately do
 	// not have to match the agent/session's turn identifier.
 	Execution, ParentExecution, ReferencedExecution        string
@@ -136,7 +137,7 @@ func parseFile(path, product, source string) ([]Event, []string, error) {
 func normalize(v map[string]any, product, path string, line int) (Event, bool) {
 	// Fixtures and exports may use a normalized envelope. Product-native aliases are
 	// deliberately read without retaining message/tool bodies.
-	e := Event{ID: str(v, "id", "uuid", "event_id"), Session: str(v, "agent_id", "agentId", "session_id", "sessionID", "thread_id", "threadId"), Parent: str(v, "parent_agent_id", "parent_id", "parentID", "parent_thread_id"), Task: str(v, "task_id", "taskID", "turn_id", "turnId"), Execution: str(v, "execution_id", "executionId", "invocation_id", "run_id"), ParentExecution: str(v, "parent_execution_id", "parentExecutionId", "parent_invocation_id"), ReferencedExecution: str(v, "child_execution_id", "childExecutionId", "spawned_execution_id"), Kind: str(v, "kind", "type"), Provider: str(v, "provider"), Model: str(v, "model"), Status: str(v, "status")}
+	e := Event{ID: str(v, "id", "uuid", "event_id"), Session: str(v, "agent_id", "agentId", "session_id", "sessionID", "thread_id", "threadId"), SourceSession: str(v, "session_id", "sessionID", "thread_id", "threadId"), Parent: str(v, "parent_agent_id", "parent_id", "parentID", "parent_thread_id"), Task: str(v, "task_id", "taskID", "turn_id", "turnId"), Execution: str(v, "execution_id", "executionId", "invocation_id", "run_id"), ParentExecution: str(v, "parent_execution_id", "parentExecutionId", "parent_invocation_id"), ReferencedExecution: str(v, "child_execution_id", "childExecutionId", "spawned_execution_id"), Kind: str(v, "kind", "type"), Provider: str(v, "provider"), Model: str(v, "model"), Status: str(v, "status")}
 	if e.Execution == "" {
 		e.Execution = e.Task
 	}

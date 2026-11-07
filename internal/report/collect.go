@@ -176,7 +176,13 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 		}
 		r.Executions = append(r.Executions, x)
 		if key == (executionKey{selected, agent}) {
-			r.Target.SessionID = &x.AgentID
+			for _, e := range es {
+				if e.SourceSession != "" {
+					v := e.SourceSession
+					r.Target.SessionID = &v
+					break
+				}
+			}
 			r.Status = x.Status
 			r.Timing = Timing{StartedAt: x.StartedAt, EndedAt: x.EndedAt, ElapsedMilliseconds: x.ElapsedMilliseconds, StartDefinition: "explicit execution start event", EndDefinition: "explicit execution terminal event"}
 			if start != nil {

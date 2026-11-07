@@ -67,7 +67,7 @@ diagnostic; the collector does not guess which child was intended.
 The command emits schema `2.0`:
 
 * `target` identifies the product, requested agent, resolved execution, and
-  source session/thread.
+  source session/thread when recorded (`null` when absent).
 * `timing` is the target execution's explicit start-to-terminal wall clock,
   with definitions and source record IDs. Descendant durations are not added.
 * `usage.self` is target-only usage; `usage.subtree` is target plus all resolved
