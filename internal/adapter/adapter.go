@@ -64,11 +64,18 @@ func (n native) Parse(path string) ([]Event, []string, error) {
 	var events []Event
 	var warnings []string
 	for _, f := range files {
-		es, ws, e := parseFile(f, n.name)
+		source := filepath.Base(f)
+		if info.IsDir() {
+			source, err = filepath.Rel(path, f)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		es, ws, e := parseFile(f, n.name, filepath.ToSlash(source))
 		events = append(events, es...)
 		warnings = append(warnings, ws...)
 		if e != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: %v", f, e))
+			warnings = append(warnings, fmt.Sprintf("%s: unreadable or malformed record file", filepath.ToSlash(source)))
 		}
 	}
 	if len(events) == 0 && len(warnings) > 0 {
@@ -77,7 +84,7 @@ func (n native) Parse(path string) ([]Event, []string, error) {
 	return events, warnings, nil
 }
 
-func parseFile(path, product string) ([]Event, []string, error) {
+func parseFile(path, product, source string) ([]Event, []string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, nil, err
@@ -85,6 +92,7 @@ func parseFile(path, product string) ([]Event, []string, error) {
 	defer f.Close()
 	dec := json.NewDecoder(f)
 	var out []Event
+	var warnings []string
 	n := 0
 	for {
 		var v map[string]any
@@ -92,14 +100,16 @@ func parseFile(path, product string) ([]Event, []string, error) {
 			break
 		}
 		if err != nil {
-			return out, nil, err
+			return out, warnings, err
 		}
 		n++
-		if e, ok := normalize(v, product, path, n); ok {
+		if e, ok := normalize(v, product, source, n); ok {
 			out = append(out, e)
+		} else {
+			warnings = append(warnings, fmt.Sprintf("%s:%d: unsupported record without a session identifier", source, n))
 		}
 	}
-	return out, nil, nil
+	return out, warnings, nil
 }
 
 func normalize(v map[string]any, product, path string, line int) (Event, bool) {
@@ -107,17 +117,16 @@ func normalize(v map[string]any, product, path string, line int) (Event, bool) {
 	// deliberately read without retaining message/tool bodies.
 	e := Event{ID: str(v, "id", "uuid", "event_id"), Session: str(v, "session_id", "sessionID", "thread_id", "threadId", "agentId"), Parent: str(v, "parent_id", "parentID", "parent_thread_id"), Task: str(v, "task_id", "taskID", "turn_id", "turnId"), Kind: str(v, "kind", "type"), Provider: str(v, "provider"), Model: str(v, "model"), Status: str(v, "status")}
 	if e.ID == "" {
-		e.ID = fmt.Sprintf("%s:%d", filepath.Base(path), line)
+		e.ID = fmt.Sprintf("%s:%d", path, line)
 	}
 	if s := str(v, "timestamp", "created_at", "createdAt", "time"); s != "" {
 		e.Time, _ = time.Parse(time.RFC3339Nano, s)
 	}
 	u := obj(v, "usage", "tokens", "token_usage")
+	m := obj(v, "message")
+	e.Model = first(e.Model, str(m, "model"))
 	if len(u) == 0 {
-		if m := obj(v, "message"); len(m) > 0 {
-			e.Model = first(e.Model, str(m, "model"))
-			u = obj(m, "usage", "tokens")
-		}
+		u = obj(m, "usage", "tokens")
 	}
 	e.Input = num(u, "input", "input_tokens", "inputTokens")
 	e.CacheRead = num(u, "cache_read", "cache_read_input_tokens", "cacheRead")

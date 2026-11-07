@@ -145,13 +145,18 @@ func aggregate(es []adapter.Event, r *Report) []ModelUsage {
 	for _, e := range es {
 		// Usage is independent of the source type: messages and lifecycle events
 		// can carry counters without losing their original kind.
-		if e.Kind != "usage" && e.Input == nil && e.CacheRead == nil && e.CacheWrite == nil && e.Output == nil && e.Reasoning == nil && e.Total == nil {
+		hasCounters := e.Input != nil || e.CacheRead != nil || e.CacheWrite != nil || e.Output != nil || e.Reasoning != nil || e.Total != nil
+		if e.Kind != "usage" && !hasCounters {
 			continue
 		}
 		if seen[e.ID] {
 			continue
 		}
 		seen[e.ID] = true
+		if !hasCounters {
+			r.Completeness = "partial"
+			r.Diagnostics = append(r.Diagnostics, Diagnostic{"unknown_usage", fmt.Sprintf("usage event %s has no observed token counters", e.ID)})
+		}
 		k := modelKey{e.Provider, e.Model}
 		if e.Model == "" {
 			r.Completeness = "partial"

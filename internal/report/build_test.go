@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"github.com/y-writings/agent-metrics/internal/adapter"
 	"os"
 	"path/filepath"
@@ -143,7 +144,7 @@ func TestInvalidParentTimingIsPartial(t *testing.T) {
 func TestTypedMessageUsageReachesReport(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "records.jsonl")
 	data := `{"id":"start","session_id":"root","task_id":"task","type":"task_start","timestamp":"2026-01-01T00:00:00Z"}
-{"id":"message","session_id":"root","task_id":"task","type":"assistant","message":{"model":"model","usage":{"input_tokens":10,"output_tokens":2}}}
+{"id":"message","session_id":"root","task_id":"task","type":"assistant","message":{"model":"model","usage":{"input_tokens":10,"output_tokens":2},"content":"PRIVATE_BODY_SENTINEL"},"tool":{"arguments":"PRIVATE_BODY_SENTINEL","result":"PRIVATE_BODY_SENTINEL"},"credentials":"PRIVATE_BODY_SENTINEL"}
 {"id":"end","session_id":"root","task_id":"task","type":"task_end","timestamp":"2026-01-01T00:00:01Z"}
 `
 	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
@@ -158,6 +159,13 @@ func TestTypedMessageUsageReachesReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := Build(a.Name(), "root", "task", events, warnings)
+	encoded, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "PRIVATE_BODY_SENTINEL") {
+		t.Fatal("report must not expose message, tool or credential bodies")
+	}
 	if len(r.Usage) != 1 || r.Usage[0].Tokens.Input == nil || *r.Usage[0].Tokens.Input != 10 || r.Usage[0].Tokens.Output == nil || *r.Usage[0].Tokens.Output != 2 {
 		t.Fatalf("typed message's observed usage must reach the report: %+v", r.Usage)
 	}
@@ -223,13 +231,13 @@ func TestDescendantTerminalControlsCompleteness(t *testing.T) {
 		t.Run(terminal, func(t *testing.T) {
 			es := []adapter.Event{
 				{ID: "start", Session: "root", Task: "task", Kind: "task_start", Time: t0},
-				{ID: "spawn", Session: "child", Parent: "root", Task: "task", Kind: "spawn", Time: t0},
+				{ID: "spawn", Session: "child", Parent: "root", Task: "task", Kind: "spawn", Time: t0, Status: "completed"},
 				{ID: "old-end", Session: "child", Task: "old", Kind: "task_end", Time: t0},
 				{ID: "end", Session: "root", Task: "task", Kind: "task_end", Time: t0.Add(time.Second)},
 			}
 			want := "partial"
 			if terminal != "missing" {
-				es = append(es, adapter.Event{ID: "child-end", Session: "child", Task: "task", Kind: terminal, Status: "failed", Time: t0.Add(time.Second)})
+				es = append(es, adapter.Event{ID: "child-end", Session: "child", Parent: "root", Task: "task", Kind: terminal, Status: "failed", Time: t0.Add(time.Second)})
 				want = "complete"
 			}
 			r := Build("codex", "root", "task", es, nil)
@@ -245,6 +253,45 @@ func TestDescendantTerminalControlsCompleteness(t *testing.T) {
 			}
 			if r.Status != "completed" || r.Timing.ElapsedMilliseconds == nil || *r.Timing.ElapsedMilliseconds != 1000 {
 				t.Fatalf("child log completeness must not change observed parent execution: %+v", r)
+			}
+		})
+	}
+}
+
+func TestGrandchildMissingTerminalIsPartial(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	r := Build("codex", "root", "task", []adapter.Event{
+		{ID: "start", Session: "root", Task: "task", Kind: "task_start", Time: t0},
+		{ID: "end", Session: "root", Task: "task", Kind: "task_end", Time: t0},
+		{ID: "child-end", Session: "child", Parent: "root", Task: "task", Kind: "task_end", Time: t0},
+		{ID: "grand-spawn", Session: "grand", Parent: "child", Task: "task", Kind: "spawn", Time: t0, Status: "completed"},
+	}, nil)
+	if r.Completeness != "partial" || len(r.Diagnostics) != 1 || r.Diagnostics[0].Code != "missing_terminal" || !strings.Contains(r.Diagnostics[0].Message, "grand") {
+		t.Fatalf("nonterminal completed status cannot stand in for a grandchild terminal: %+v", r)
+	}
+}
+
+func TestUnknownUsageIsPartialButZeroIsKnown(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name  string
+		input *int64
+		want  string
+	}{
+		{"unknown", nil, "partial"},
+		{"known_zero", p(0), "complete"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := Build("codex", "root", "task", []adapter.Event{
+				{ID: "start", Session: "root", Task: "task", Kind: "task_start", Time: t0},
+				{ID: "usage", Session: "root", Task: "task", Kind: "usage", Model: "model", Input: tc.input},
+				{ID: "end", Session: "root", Task: "task", Kind: "task_end", Time: t0},
+			}, nil)
+			if r.Completeness != tc.want || len(r.Usage) != 1 || !reflect.DeepEqual(r.Usage[0].Tokens.Input, tc.input) {
+				t.Fatalf("unknown usage and known zero must remain distinguishable: %+v", r)
+			}
+			if tc.input == nil && (len(r.Diagnostics) != 1 || r.Diagnostics[0].Code != "unknown_usage") {
+				t.Fatalf("unknown usage needs a reason: %+v", r.Diagnostics)
 			}
 		})
 	}

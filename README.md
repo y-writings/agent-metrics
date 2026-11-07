@@ -49,11 +49,16 @@ equal timestamps (including when both are absent) retain input order as a
 tie-breaker. Agent-level results are then summed; one agent's snapshot never
 replaces another's usage.
 
+Records without an event ID use the scan-root-relative file path and record
+number as their source ID, so same-named files in different directories remain
+distinct. For a single-file input, the source path is its filename.
+
 ## JSON schema and incomplete data
 
-Output schema `1.0` contains the selected task, parent wall-clock timing (UTC
-RFC 3339 timestamps and milliseconds), aggregate usage by provider/model, and
-each agent's parent, spawn time, status, usage, and source event IDs. Parallel
+Output schema `1.0` contains the selected task, parent wall-clock timing (RFC 3339
+timestamps with explicit offsets and milliseconds), aggregate usage by
+provider/model, and each agent's parent, spawn time, status, usage, and source
+event IDs. Parallel
 child durations are never summed. Completion time requires an explicit parent
 terminal event; the final log timestamp is not substituted.
 Boundary timestamps must be valid RFC 3339 values in chronological order.
@@ -62,14 +67,17 @@ partial; an observed terminal event still determines execution status.
 
 `status` describes execution, while `completeness` independently reports
 `complete`, `partial`, or `incomplete`. Diagnostics explain missing boundaries,
-unknown models, corrupt records, and unmatched tasks. Known zero is `0`; absent
-data is `null`. A missing/non-persisted child cannot always be detected from
+unknown models or usage, corrupt records, and unmatched tasks. Known zero is `0`;
+absent data is `null`. A missing/non-persisted child cannot always be detected from
 local logs, so completeness is guaranteed only when every spawn and descendant
 record has a stable parent/task link and explicit terminal record. An observed
 descendant without a terminal event makes the report partial with a
 `missing_terminal` diagnostic, even when the parent has completed.
 If JSONL decoding fails, already decoded records remain available and the warning
 makes the report partial. The reader does not skip ahead past malformed records.
+Records without a session identifier generate a warning. Explicit usage events
+without any observed counters remain unknown and produce `unknown_usage` rather
+than a complete zero-usage report.
 
 ## Validation scope
 
