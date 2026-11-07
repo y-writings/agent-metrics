@@ -46,6 +46,8 @@ type ExecutionReport struct {
 	Diagnostics   []Diagnostic `json:"diagnostics"`
 }
 
+type executionKey struct{ id, agent string }
+
 // Collect resolves exactly one invocation of agent and follows explicit
 // invocation links. It never infers relationships from timestamps or cwd.
 func Collect(product, agent, requestedExecution string, events []adapter.Event, warnings []string) ExecutionReport {
@@ -54,7 +56,14 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 		r.partial("record_warning", w)
 	}
 	candidates := map[string]bool{}
+	keysByID := map[string]map[executionKey]bool{}
 	for _, e := range events {
+		if e.Execution != "" {
+			if keysByID[e.Execution] == nil {
+				keysByID[e.Execution] = map[executionKey]bool{}
+			}
+			keysByID[e.Execution][executionKey{e.Execution, e.Session}] = true
+		}
 		if e.Session == agent && e.Execution != "" {
 			candidates[e.Execution] = true
 		}
@@ -81,52 +90,110 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 		return r
 	}
 	r.Target.ExecutionID = &selected
-	included := map[string]bool{selected: true}
+	included := map[executionKey]bool{{selected, agent}: true}
+	ambiguous := map[string]bool{}
+	unique := func(id string) (executionKey, bool) {
+		if len(keysByID[id]) != 1 {
+			return executionKey{id: id}, false
+		}
+		for key := range keysByID[id] {
+			return key, true
+		}
+		return executionKey{}, false
+	}
 	for changed := true; changed; {
 		changed = false
 		for _, e := range events {
-			if included[e.Execution] && e.ReferencedExecution != "" && !included[e.ReferencedExecution] {
-				included[e.ReferencedExecution] = true
-				changed = true
+			if included[executionKey{e.Execution, e.Session}] && e.ReferencedExecution != "" {
+				child, ok := unique(e.ReferencedExecution)
+				if !ok && len(keysByID[e.ReferencedExecution]) > 1 {
+					ambiguous[e.ReferencedExecution] = true
+				}
+				if !ok && len(keysByID[e.ReferencedExecution]) == 0 {
+					child = executionKey{id: e.ReferencedExecution}
+				}
+				if (ok || len(keysByID[e.ReferencedExecution]) == 0) && !included[child] {
+					included[child] = true
+					changed = true
+				}
 			}
-			if e.Execution != "" && e.ParentExecution != "" && included[e.ParentExecution] && !included[e.Execution] {
-				included[e.Execution] = true
-				changed = true
+			if e.Execution != "" && e.ParentExecution != "" {
+				parent, ok := unique(e.ParentExecution)
+				child := executionKey{e.Execution, e.Session}
+				if !ok {
+					for candidate := range keysByID[e.ParentExecution] {
+						if included[candidate] {
+							ambiguous[e.ParentExecution] = true
+						}
+					}
+				}
+				if ok && included[parent] && !included[child] {
+					included[child] = true
+					changed = true
+				}
 			}
 		}
 	}
-	by := map[string][]adapter.Event{}
+	for id := range ambiguous {
+		r.partial("ambiguous_execution_link", fmt.Sprintf("execution %s is shared by multiple agents; its delegation links cannot be resolved", id))
+	}
+	by := map[executionKey][]adapter.Event{}
 	for _, e := range events {
-		if included[e.Execution] {
-			by[e.Execution] = append(by[e.Execution], e)
+		key := executionKey{e.Execution, e.Session}
+		if included[key] {
+			by[key] = append(by[key], e)
 		}
 	}
-	for id := range included {
-		es := by[id]
-		if len(es) == 0 {
-			r.partial("missing_descendant", fmt.Sprintf("execution %s is referenced but its records are missing", id))
+	spawns := map[executionKey]adapter.Event{}
+	for _, e := range events {
+		if e.Kind != "spawn" || e.ReferencedExecution == "" || !included[executionKey{e.Execution, e.Session}] {
 			continue
 		}
-		x := executionFrom(id, es, &r)
+		child, ok := unique(e.ReferencedExecution)
+		if !ok || !included[child] {
+			continue
+		}
+		if previous, exists := spawns[child]; !exists || (!e.Time.IsZero() && (previous.Time.IsZero() || e.Time.Before(previous.Time))) {
+			spawns[child] = e
+		}
+	}
+	for key := range included {
+		es := by[key]
+		if len(es) == 0 {
+			r.partial("missing_descendant", fmt.Sprintf("execution %s is referenced but its records are missing", key.id))
+			continue
+		}
+		x, start, end := executionFrom(key.id, es, &r)
+		if spawn, ok := spawns[key]; ok {
+			if !spawn.Time.IsZero() {
+				v := spawn.Time
+				x.SpawnedAt = &v
+			}
+			if x.ParentExecutionID == nil {
+				v := spawn.Execution
+				x.ParentExecutionID = &v
+			}
+		}
 		r.Executions = append(r.Executions, x)
-		if id == selected {
+		if key == (executionKey{selected, agent}) {
 			r.Target.SessionID = &x.AgentID
 			r.Status = x.Status
 			r.Timing = Timing{StartedAt: x.StartedAt, EndedAt: x.EndedAt, ElapsedMilliseconds: x.ElapsedMilliseconds, StartDefinition: "explicit execution start event", EndDefinition: "explicit execution terminal event"}
-			for _, e := range es {
-				if e.Kind == "task_start" || e.Kind == "execution_start" {
-					v := e.ID
-					r.Timing.StartSourceID = &v
-				}
-				if e.Kind == "task_end" || e.Kind == "execution_end" {
-					v := e.ID
-					r.Timing.EndSourceID = &v
-				}
+			if start != nil {
+				r.Timing.StartSourceID = &start.ID
+			}
+			if end != nil {
+				r.Timing.EndSourceID = &end.ID
 			}
 			r.Usage.Self = x.Usage
 		}
 	}
-	sort.Slice(r.Executions, func(i, j int) bool { return r.Executions[i].ID < r.Executions[j].ID })
+	sort.Slice(r.Executions, func(i, j int) bool {
+		if r.Executions[i].ID == r.Executions[j].ID {
+			return r.Executions[i].AgentID < r.Executions[j].AgentID
+		}
+		return r.Executions[i].ID < r.Executions[j].ID
+	})
 	sums := map[modelKey]Tokens{}
 	for _, x := range r.Executions {
 		for _, u := range x.Usage {
@@ -139,7 +206,7 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 	return r
 }
 
-func executionFrom(id string, es []adapter.Event, r *ExecutionReport) Execution {
+func executionFrom(id string, es []adapter.Event, r *ExecutionReport) (Execution, *adapter.Event, *adapter.Event) {
 	x := Execution{ID: id, AgentID: es[0].Session, Status: "in_progress"}
 	var start, end *adapter.Event
 	for i := range es {
@@ -149,14 +216,14 @@ func executionFrom(id string, es []adapter.Event, r *ExecutionReport) Execution 
 			v := e.ParentExecution
 			x.ParentExecutionID = &v
 		}
-		if e.Kind == "spawn" && !e.Time.IsZero() {
+		if e.Kind == "spawn" && e.ReferencedExecution == "" && !e.Time.IsZero() {
 			v := e.Time
 			x.SpawnedAt = &v
 		}
-		if (e.Kind == "task_start" || e.Kind == "execution_start") && (start == nil || e.Time.Before(start.Time)) {
+		if (e.Kind == "task_start" || e.Kind == "execution_start") && (start == nil || (start.Time.IsZero() && !e.Time.IsZero()) || (!e.Time.IsZero() && e.Time.Before(start.Time))) {
 			start = e
 		}
-		if (e.Kind == "task_end" || e.Kind == "execution_end") && (end == nil || e.Time.After(end.Time)) {
+		if (e.Kind == "task_end" || e.Kind == "execution_end") && (end == nil || (end.Time.IsZero() && !e.Time.IsZero()) || (!e.Time.IsZero() && e.Time.After(end.Time))) {
 			end = e
 		}
 	}
@@ -188,7 +255,7 @@ func executionFrom(id string, es []adapter.Event, r *ExecutionReport) Execution 
 		v := x.EndedAt.Sub(*x.StartedAt).Milliseconds()
 		x.ElapsedMilliseconds = &v
 	}
-	return x
+	return x, start, end
 }
 func (r *ExecutionReport) partial(code, msg string) {
 	if r.Completeness == "complete" {

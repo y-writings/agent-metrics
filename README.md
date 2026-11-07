@@ -42,7 +42,8 @@ aliases include `agent_id`/`session_id`/`thread_id`, `execution_id`/
 `invocation_id`/`run_id`, `parent_execution_id`, and `child_execution_id`.
 `task_id` and `turn_id` remain source identifiers; they are not required to be
 equal between parent and child. A missing `execution_id` falls back to the
-record's task/turn ID for export fixtures.
+record's task/turn ID for export fixtures. Fallback IDs are scoped to the
+agent, so another agent with the same task/turn ID cannot contribute usage.
 
 An execution subtree is followed only through explicit
 `parent_execution_id` or `child_execution_id` references. Timestamps, working
@@ -50,7 +51,9 @@ directories, and similar coincidental attributes are never used to infer a
 relationship. Consequently parent preparation, sibling trials, earlier/later
 invocations, and orchestrator usage are excluded, while explicitly delegated
 descendants are recursive. A referenced execution without records produces a
-`missing_descendant` diagnostic.
+`missing_descendant` diagnostic. If a delegation reference names an ID shared
+by multiple agents, the subtree is partial with an `ambiguous_execution_link`
+diagnostic; the collector does not guess which child was intended.
 
 > **Current validation scope:** the adapters support the documented metadata
 > aliases in JSON/JSONL records. The default roots make native record discovery
