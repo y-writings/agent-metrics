@@ -296,3 +296,71 @@ func TestUnknownUsageIsPartialButZeroIsKnown(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentStatusFollowsLifecycleTime(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name           string
+		events         []adapter.Event
+		want           string
+		terminal, tied bool
+	}{
+		{"terminal_before_older_start", []adapter.Event{
+			{ID: "end", Kind: "task_end", Status: "failed", Time: t0.Add(time.Second)},
+			{ID: "start", Kind: "task_start", Status: "in_progress", Time: t0},
+		}, "failed", true, false},
+		{"latest_terminal", []adapter.Event{
+			{ID: "new", Kind: "turn_end", Status: "failed", Time: t0.Add(time.Second)},
+			{ID: "old", Kind: "turn_end", Status: "completed", Time: t0},
+		}, "failed", true, false},
+		{"undated_terminal_default", []adapter.Event{
+			{ID: "end", Kind: "task_end"},
+			{ID: "start", Kind: "task_start", Status: "in_progress", Time: t0},
+		}, "completed", true, false},
+		{"latest_explicit_nonterminal_status", []adapter.Event{
+			{ID: "message", Kind: "assistant", Time: t0.Add(2 * time.Second)},
+			{ID: "state", Kind: "state", Status: "interrupted", Time: t0.Add(time.Second)},
+			{ID: "start", Kind: "task_start", Status: "in_progress", Time: t0},
+		}, "interrupted", false, false},
+		{"tied_terminals_match_parent", []adapter.Event{
+			{ID: "first", Kind: "task_end", Status: "failed", Time: t0},
+			{ID: "second", Kind: "turn_end", Status: "completed", Time: t0},
+		}, "failed", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, reverse := range []bool{false, true} {
+				if reverse && tc.tied {
+					continue
+				}
+				events := append([]adapter.Event(nil), tc.events...)
+				if reverse {
+					for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
+						events[i], events[j] = events[j], events[i]
+					}
+				}
+				var records []adapter.Event
+				for _, session := range []string{"root", "child"} {
+					for _, e := range events {
+						e.Session, e.Task = session, "task"
+						if session == "child" {
+							e.Parent = "root"
+						}
+						records = append(records, e)
+					}
+				}
+				r := Build("codex", "root", "task", records, nil)
+				if len(r.Agents) != 2 {
+					t.Fatalf("expected parent and child: %+v", r.Agents)
+				}
+				for _, a := range r.Agents {
+					if a.Status != tc.want {
+						t.Errorf("agent %s status=%s, want %s (reversed=%v)", a.ID, a.Status, tc.want, reverse)
+					}
+				}
+				if tc.terminal && r.Status != tc.want {
+					t.Errorf("parent execution status=%s, want %s", r.Status, tc.want)
+				}
+			}
+		})
+	}
+}

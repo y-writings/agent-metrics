@@ -79,6 +79,11 @@ Records without a session identifier generate a warning. Explicit usage events
 without any observed counters remain unknown and produce `unknown_usage` rather
 than a complete zero-usage report.
 
+An agent's latest terminal event determines its status, defaulting to `completed`
+when that event omits status. Without a terminal, the latest timestamped explicit
+status is used. Equal timestamps retain the first encountered status, consistently
+with parent terminal selection.
+
 ## Validation scope
 
 Automated tests use synthetic, anonymized records reproducing the documented

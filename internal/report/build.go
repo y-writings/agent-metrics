@@ -87,21 +87,29 @@ func Build(product, parent, task string, events []adapter.Event, warnings []stri
 			a.ParentID = &p
 		}
 		var spawn *time.Time
-		hasTerminal := false
+		var terminal, status *adapter.Event
 		for _, e := range es {
+			x := e
 			a.SourceIDs = append(a.SourceIDs, e.ID)
 			if e.Kind == "spawn" && !e.Time.IsZero() {
 				x := e.Time
 				spawn = &x
 			}
-			if e.Status != "" {
-				a.Status = e.Status
+			if e.Status != "" && (status == nil || e.Time.After(status.Time)) {
+				status = &x
 			}
 			if e.Kind == "task_end" || e.Kind == "turn_end" {
-				hasTerminal = true
+				if terminal == nil || e.Time.After(terminal.Time) {
+					terminal = &x
+				}
 			}
 		}
-		if id != parent && !hasTerminal {
+		if terminal != nil {
+			a.Status = firstStatus(terminal.Status, "completed")
+		} else if status != nil {
+			a.Status = status.Status
+		}
+		if id != parent && terminal == nil {
 			r.Completeness = "partial"
 			r.Diagnostics = append(r.Diagnostics, Diagnostic{"missing_terminal", fmt.Sprintf("agent %s has no terminal event for the selected task", id)})
 		}
