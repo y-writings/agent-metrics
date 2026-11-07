@@ -60,7 +60,7 @@ func TestCollectScopesFallbackExecutionToAgent(t *testing.T) {
 
 func TestCollectProjectsReferencedSpawnOntoChild(t *testing.T) {
 	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	r := Collect("codex", "parent", "run", []adapter.Event{
+	es := []adapter.Event{
 		{ID: "start", Session: "parent", Execution: "run", Kind: "execution_start", Time: t0},
 		{ID: "parent-use", Session: "parent", Execution: "run", Kind: "usage", Model: "m", Input: p(2)},
 		{ID: "spawn", Session: "parent", Execution: "run", ReferencedExecution: "child-run", Kind: "spawn", Time: t0.Add(time.Second)},
@@ -68,7 +68,8 @@ func TestCollectProjectsReferencedSpawnOntoChild(t *testing.T) {
 		{ID: "child-use", Session: "child", Execution: "child-run", Kind: "usage", Model: "m", Input: p(3)},
 		{ID: "child-end", Session: "child", Execution: "child-run", Kind: "execution_end", Time: t0.Add(2 * time.Second)},
 		{ID: "end", Session: "parent", Execution: "run", Kind: "execution_end", Time: t0.Add(3 * time.Second)},
-	}, nil)
+	}
+	r := Collect("codex", "parent", "run", es, nil)
 	if r.Completeness != "complete" || len(r.Executions) != 2 || len(r.Usage.Subtree) != 1 || *r.Usage.Subtree[0].Tokens.Input != 5 {
 		t.Fatalf("referenced child must be included: %+v", r)
 	}
@@ -83,6 +84,13 @@ func TestCollectProjectsReferencedSpawnOntoChild(t *testing.T) {
 				t.Fatalf("child must inherit referenced spawn metadata: %+v", x)
 			}
 		}
+	}
+	child := Collect("codex", "child", "child-run", es, nil)
+	if child.Completeness != "complete" || len(child.Executions) != 1 || child.Executions[0].ID != "child-run" || child.Executions[0].SpawnedAt == nil || !child.Executions[0].SpawnedAt.Equal(t0.Add(time.Second)) || child.Executions[0].ParentExecutionID == nil || *child.Executions[0].ParentExecutionID != "run" {
+		t.Fatalf("child-only report must retain external spawn metadata: %+v", child)
+	}
+	if len(child.Usage.Self) != 1 || len(child.Usage.Subtree) != 1 || *child.Usage.Subtree[0].Tokens.Input != 3 {
+		t.Fatalf("child-only report must exclude parent usage: %+v", child.Usage)
 	}
 }
 

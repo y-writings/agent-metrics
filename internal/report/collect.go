@@ -146,7 +146,7 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 	}
 	spawns := map[executionKey]adapter.Event{}
 	for _, e := range events {
-		if e.Kind != "spawn" || e.ReferencedExecution == "" || !included[executionKey{e.Execution, e.Session}] {
+		if e.Kind != "spawn" || e.ReferencedExecution == "" {
 			continue
 		}
 		child, ok := unique(e.ReferencedExecution)
@@ -169,7 +169,7 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 				v := spawn.Time
 				x.SpawnedAt = &v
 			}
-			if x.ParentExecutionID == nil {
+			if x.ParentExecutionID == nil && spawn.Execution != "" {
 				v := spawn.Execution
 				x.ParentExecutionID = &v
 			}
