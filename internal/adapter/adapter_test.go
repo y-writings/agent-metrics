@@ -29,6 +29,9 @@ func TestNestedModelWithTopLevelUsage(t *testing.T) {
 	if !ok || e.Model != "model" || e.Input == nil || *e.Input != 2 {
 		t.Fatalf("model lookup must be independent of usage location: %+v", e)
 	}
+	if e.Session != "root" || e.SourceSession != "root" {
+		t.Fatalf("session-only records must preserve agent alias and source session: %+v", e)
+	}
 }
 
 func TestParseWarnsForUnsupportedRecords(t *testing.T) {
