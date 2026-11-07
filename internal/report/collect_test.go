@@ -138,10 +138,30 @@ func TestCollectTimingSourcesMatchSelectedBoundaries(t *testing.T) {
 		{ID: "undated-end", Session: "agent", Execution: "run", Kind: "execution_end"},
 		{ID: "late-end", Session: "agent", Execution: "run", Kind: "execution_end", Time: t0.Add(3 * time.Second), Status: "failed"},
 		{ID: "early-end", Session: "agent", Execution: "run", Kind: "execution_end", Time: t0.Add(2 * time.Second)},
+		{ID: "later-state", Session: "agent", Execution: "run", Kind: "status", Time: t0.Add(4 * time.Second), Status: "interrupted"},
 		{ID: "usage", Session: "agent", Execution: "run", Kind: "usage", Model: "m", Input: p(1)},
 	}, nil)
 	if r.Timing.StartedAt == nil || !r.Timing.StartedAt.Equal(t0) || r.Timing.StartSourceID == nil || *r.Timing.StartSourceID != "early-start" || r.Timing.EndedAt == nil || !r.Timing.EndedAt.Equal(t0.Add(3*time.Second)) || r.Timing.EndSourceID == nil || *r.Timing.EndSourceID != "late-end" || r.Status != "failed" {
 		t.Fatalf("timing sources must match selected boundaries: %+v", r.Timing)
+	}
+}
+
+func TestCollectRetainsLatestExplicitStatusWithoutTerminal(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	r := Collect("codex", "agent", "run", []adapter.Event{
+		{ID: "latest-status", Session: "agent", Execution: "run", Kind: "status", Status: "interrupted", Time: t0.Add(2 * time.Second)},
+		{ID: "start", Session: "agent", Execution: "run", Kind: "execution_start", Status: "in_progress", Time: t0},
+		{ID: "older-status", Session: "agent", Execution: "run", Kind: "status", Status: "running", Time: t0.Add(time.Second)},
+		{ID: "usage", Session: "agent", Execution: "run", Kind: "usage", Model: "m", Input: p(2)},
+	}, nil)
+	if r.Status != "interrupted" || len(r.Executions) != 1 || r.Executions[0].Status != "interrupted" {
+		t.Fatalf("latest explicit status must survive a missing terminal event: %+v", r)
+	}
+	if r.Completeness != "partial" || r.Timing.EndedAt != nil || r.Timing.ElapsedMilliseconds != nil {
+		t.Fatalf("status must not stand in for an explicit terminal boundary: %+v", r)
+	}
+	if len(r.Diagnostics) != 1 || r.Diagnostics[0].Code != "missing_boundary" {
+		t.Fatalf("missing terminal boundary must be diagnosed: %+v", r.Diagnostics)
 	}
 }
 

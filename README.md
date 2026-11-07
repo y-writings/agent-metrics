@@ -83,7 +83,9 @@ Start boundaries are `execution_start` or `task_start`; terminal boundaries are
 substituted. Missing timestamps or reversed boundaries leave elapsed time
 `null`. Target elapsed time remains available when descendant data is partial.
 A failure is an execution state and does not by itself mean that observed data
-is incomplete.
+is incomplete. Without a terminal event, an explicit state is retained, with
+later timestamps preferred; the missing end boundary still makes the report
+partial.
 
 Usage preserves input, cache read/write, output, reasoning, and total counters.
 These are separate observations: cache/reasoning values are not added again to

@@ -226,10 +226,13 @@ func Collect(product, agent, requestedExecution string, events []adapter.Event, 
 
 func executionFrom(id string, es []adapter.Event, r *ExecutionReport) (Execution, *adapter.Event, *adapter.Event) {
 	x := Execution{ID: id, AgentID: es[0].Session, Status: "in_progress"}
-	var start, end *adapter.Event
+	var start, end, status *adapter.Event
 	for i := range es {
 		e := &es[i]
 		x.SourceIDs = append(x.SourceIDs, e.ID)
+		if e.Status != "" && (status == nil || e.Time.After(status.Time)) {
+			status = e
+		}
 		if e.ParentExecution != "" {
 			v := e.ParentExecution
 			x.ParentExecutionID = &v
@@ -263,6 +266,8 @@ func executionFrom(id string, es []adapter.Event, r *ExecutionReport) (Execution
 			v := end.Time
 			x.EndedAt = &v
 		}
+	} else if status != nil {
+		x.Status = status.Status
 	}
 	if x.StartedAt == nil || x.EndedAt == nil {
 		r.partial("missing_boundary", fmt.Sprintf("execution %s lacks an explicit timestamped start or terminal event", id))
