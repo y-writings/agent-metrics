@@ -65,12 +65,11 @@ func (n native) Parse(path string) ([]Event, []string, error) {
 	var warnings []string
 	for _, f := range files {
 		es, ws, e := parseFile(f, n.name)
-		if e != nil {
-			warnings = append(warnings, fmt.Sprintf("%s: %v", f, e))
-			continue
-		}
 		events = append(events, es...)
 		warnings = append(warnings, ws...)
+		if e != nil {
+			warnings = append(warnings, fmt.Sprintf("%s: %v", f, e))
+		}
 	}
 	if len(events) == 0 && len(warnings) > 0 {
 		return nil, warnings, fmt.Errorf("no supported records found")
