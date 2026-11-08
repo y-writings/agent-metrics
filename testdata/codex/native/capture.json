@@ -1,0 +1,119 @@
+{
+  "product": "codex",
+  "collection_date": "2026-11-08",
+  "native_cli_version": "0.165.0",
+  "binary_sha256": "ebdeb4bde5d116d1d7bcbf9100e40c3229c2df7e0f758da312b48f31ced0da56",
+  "os": {
+    "name": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64"
+  },
+  "primary": {
+    "launch": "existing Zed Codex session",
+    "native_originator": "zed",
+    "native_source": "vscode",
+    "multi_agent_version": "v2",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "reasoning_effort": "max",
+    "parent_execution": "foreground",
+    "children_execution": "collaboration subagents",
+    "CODEX_HOME_override_present": false,
+    "record_root": "<default-codex-home>/sessions",
+    "native_relative_layout": "sessions/YYYY/MM/DD/rollout-YYYY-MM-DDTHH-MM-SS-<thread-uuid>.jsonl",
+    "snapshot_method": "Read only full JSONL snapshots of the identified parent/child files; private working copies outside repository. No SQLite export or source mutation."
+  },
+  "override": {
+    "launch": "codex exec",
+    "native_originator": "codex_exec",
+    "native_source": "exec",
+    "CODEX_HOME_set_before_launch": true,
+    "CODEX_HOME_value": "<isolated-codex-home>",
+    "argv": [
+      "codex",
+      "exec",
+      "--ignore-user-config",
+      "--enable",
+      "multi_agent",
+      "--enable",
+      "multi_agent_v2",
+      "--skip-git-repo-check",
+      "--sandbox",
+      "read-only",
+      "--model",
+      "gpt-6-astra",
+      "--json",
+      "-C",
+      "<fixture-workspace>",
+      "-"
+    ],
+    "exit_code": 0,
+    "native_rollouts_created": 2,
+    "retained_parent_child_ids": "expected.json files with override prefix",
+    "file_move_is_not_evidence": true
+  },
+  "ephemeral_attempts": [
+    {
+      "fork_turns": "all",
+      "extra_argv": [
+        "--ephemeral"
+      ],
+      "events_file": "events/ephemeral-events.jsonl",
+      "exit_code": 0,
+      "persistent_rollouts_before": 2,
+      "persistent_rollouts_after": 2,
+      "child_capture": "uncollected",
+      "reason": "No child references or usage recoverable from the captured stdout; no new persisted rollouts. Absence of stdout child IDs does not establish absence of delegation."
+    },
+    {
+      "fork_turns": "none",
+      "extra_argv": [
+        "--ephemeral"
+      ],
+      "events_file": "events/ephemeral-independent-events.jsonl",
+      "exit_code": 0,
+      "persistent_rollouts_before": 2,
+      "persistent_rollouts_after": 2,
+      "child_capture": "uncollected",
+      "reason": "No child references or usage recoverable from the captured stdout; no new persisted rollouts. Absence of stdout child IDs does not establish absence of delegation."
+    }
+  ],
+  "coverage": {
+    "R1": "captured",
+    "R2_sibling": "captured",
+    "R2_grandchild": "captured",
+    "R3": "captured",
+    "R4": "uncollected",
+    "R5_running": "captured",
+    "R5_interrupted": "captured",
+    "R5_parent_done_child_running": "captured",
+    "R5_failed": "uncollected",
+    "R6_basic": "captured",
+    "R6_model_change_fork_reset_compaction": "uncollected",
+    "R7_child": "attempted_uncollected",
+    "L1": "captured_primary",
+    "L2": "captured_cli",
+    "L3": "derived_recipes_verified",
+    "L4": "derived_recipes_verified"
+  },
+  "privacy": {
+    "classification": "real-derived",
+    "time_shift_days": -311,
+    "all_numeric_counters_and_durations_unchanged": true,
+    "identifiers": "consistent pseudonyms preserving UUID version/variant and opaque ID prefix/length",
+    "bodies": "omitted or empty strings; original null remains null",
+    "source_unchanged": "Private static snapshots compared before/after; live source logs only read. Normal producer appends are not treated as reader modifications."
+  },
+  "review": {
+    "tier": 2,
+    "independent_review": true,
+    "tier_3_needed": false,
+    "accepted_findings": [
+      "Preserve native null prompt fields in CLI stdout instead of replacing with empty strings. Fixed and rechecked.",
+      "Qualify turn_trigger by launch mode: Zed null, CLI exec.",
+      "Verify L3 explicit one-invocation, default three-invocation and configured unrelated-agent controls; request agent without execution selector."
+    ]
+  },
+  "native_adapter_cli_support_claimed": false
+}

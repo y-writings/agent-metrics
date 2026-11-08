@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "classification": "derived",
+  "materialization": "python3 prepare.py NEW_DIRECTORY",
+  "variants": [
+    {
+      "name": "missing-descendant",
+      "base": "default",
+      "operation": "remove-file",
+      "execution": "G.B",
+      "target": "T.B",
+      "expected": {
+        "self_total": 60121,
+        "elapsed_ms": 14826,
+        "known_subtree_total": 60121,
+        "final_subtree_total": null,
+        "reason": "G.B transcript removed while T.B's Agent call/returned agentId and G.B meta.json remain; do not mistake it for no children."
+      }
+    },
+    {
+      "name": "missing-start",
+      "base": "r1",
+      "operation": "remove-start",
+      "execution": "T.A",
+      "expected": {
+        "total": 25414,
+        "elapsed_ms": null,
+        "reason": "Missing invocation start record; retain usage and the stop notification."
+      }
+    },
+    {
+      "name": "missing-end",
+      "base": "r1",
+      "operation": "remove-end",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 25414,
+        "elapsed_ms": null,
+        "reason": "Loop-terminal record removed; the stop notification alone is not the child's end boundary. Do not substitute the last usage timestamp or notification time."
+      }
+    },
+    {
+      "name": "missing-stop-notification",
+      "base": "r1",
+      "operation": "remove-notification",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 25414,
+        "elapsed_ms": null,
+        "final_total": null,
+        "status": null,
+        "reason": "Without the caller's stop notification a toolEndsTurn/end_turn record cannot be told apart from an intermediate turn end (see R4/R5); do not mark complete."
+      }
+    },
+    {
+      "name": "missing-model",
+      "base": "r1",
+      "operation": "remove-model",
+      "execution": "T.A",
+      "expected": {
+        "known_unattributed_total": 25414,
+        "elapsed_ms": 5437,
+        "model": null,
+        "reason": "Remove message.model, requestedModel, api-request params.model, attachment.identity.modelId and the spawn result resolvedModel; do not inherit the parent's model."
+      }
+    },
+    {
+      "name": "missing-usage",
+      "base": "r1",
+      "operation": "remove-usage",
+      "execution": "T.A",
+      "expected": {
+        "total": null,
+        "elapsed_ms": 5437,
+        "reason": "message.usage removed from every row of the target's messages; missing is not zero. Notification subagent_tokens is not a substitute."
+      }
+    },
+    {
+      "name": "duplicate-row",
+      "base": "r1",
+      "operation": "duplicate-row",
+      "execution": "T.A",
+      "expected": {
+        "total": 25414,
+        "elapsed_ms": 5437,
+        "reason": "An exact repeated assistant row (same uuid/message.id) must count once, like the native per-content-block split rows."
+      }
+    },
+    {
+      "name": "removed-prior-invocation",
+      "base": "default",
+      "operation": "remove-prior-invocation",
+      "execution": "T.B",
+      "expected": {
+        "total": 60121,
+        "elapsed_ms": 14826,
+        "remaining_invocations": 2,
+        "reason": "T.A rows removed; T.B is still the coordinator-started segment and its usage is unchanged. B/C remain ambiguous without a selector."
+      }
+    },
+    {
+      "name": "truncated-tail",
+      "base": "r1",
+      "operation": "truncate-tail",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 25414,
+        "elapsed_ms": null,
+        "reason": "Malformed JSONL tail (the loop-terminal record) must be diagnosed while retaining complete earlier usage records."
+      }
+    },
+    {
+      "name": "unsupported-record",
+      "base": "r1",
+      "operation": "append-unknown",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 25414,
+        "reason": "Unknown native record type must be diagnosed, not reported as an empty complete result."
+      }
+    },
+    {
+      "name": "reversed-time",
+      "base": "r1",
+      "operation": "reverse-end",
+      "execution": "T.A",
+      "expected": {
+        "total": 25414,
+        "elapsed_ms": null,
+        "reason": "Terminal record timestamp precedes the start; do not report a negative or substitute duration."
+      }
+    },
+    {
+      "name": "body-sentinel",
+      "base": "r1",
+      "operation": "append-sentinel",
+      "execution": "T.A",
+      "expected": {
+        "total": 25414,
+        "elapsed_ms": 5437,
+        "forbidden_output": "FIXTURE_BODY_MUST_NOT_LEAK",
+        "reason": "Synthetic harmless body must never reach report, diagnostics or measurement metadata; reader must not change fixture hashes."
+      }
+    }
+  ],
+  "lookup_cases": [
+    {
+      "id": "L3-explicit",
+      "explicit": "lookup/explicit/projects",
+      "configured": "lookup/configured",
+      "default": "lookup/default/projects",
+      "requested_agent": "ada3d4768bc8b8ec8",
+      "execution": null,
+      "expect": "Select the explicit root: T has one invocation there. The configured CLAUDE_CONFIG_DIR root contains unrelated O.child; the default root contains three T invocations and would be ambiguous without an execution selector."
+    },
+    {
+      "id": "L3-invalid-explicit",
+      "explicit": "lookup/nonexistent",
+      "configured": "lookup/default",
+      "requested": "T.A",
+      "expect": "Invalid explicit root; do not fall through to the valid configured target."
+    },
+    {
+      "id": "L4-invalid-config",
+      "configured": "lookup/nonexistent",
+      "default": "lookup/default/projects",
+      "requested": "T.A",
+      "expect": "Invalid CLAUDE_CONFIG_DIR; do not fall through to default records."
+    },
+    {
+      "id": "L4-empty",
+      "explicit": "lookup/empty",
+      "requested": "T.A",
+      "expect": "No records, not a zero complete run."
+    },
+    {
+      "id": "L4-wrong-id",
+      "explicit": "lookup/no-target/projects",
+      "requested": "T.A",
+      "expect": "Requested agent missing. O.child is a later unrelated successful execution; never select it."
+    }
+  ]
+}

@@ -1,0 +1,406 @@
+{
+  "version": 1,
+  "product": "opencode-v2",
+  "classification": "real-derived",
+  "native_version": "2.2.1",
+  "execution_definition": "One invocation in a child session starts at a user session_message and ends at the following idle session_message before the next user message. A reused session therefore contains multiple invocations. An open tail with no idle record is running.",
+  "timing_definition": "elapsed_ms is idle.data.time.created minus user.data.time.created. Parent subagent tool time is linkage evidence; for background=true its completed time is spawn completion, not child completion.",
+  "usage_definition": "Sum assistant data.tokens once per native.responseId inside the selected invocation, using session_message.id only as the fallback identity when responseId is absent. Repeated response identities must carry identical usage and model evidence. session_v2 token columns are cumulative across the session and provide the reused-session baseline/final cross-check. OpenCode 2.2.1 exposes input, output, reasoning, cache read, and cache write here but no native total counter, so total_tokens is null rather than a synthesized component sum.",
+  "snapshots": {
+    "r1": {
+      "file": "r1.db",
+      "sessions": {
+        "P": "ses_NfCgqh6CHONWo5zoQQi7bcySpT",
+        "T": "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe"
+      }
+    },
+    "default": {
+      "file": "default.db",
+      "sessions": {
+        "P": "ses_NfCgqh6CHONWo5zoQQi7bcySpT",
+        "T": "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe",
+        "R2.S": "ses_JrSNkYoYCHKt0iqpeIwdV24Pjz",
+        "R2.T": "ses_ZRHTPhPqFkNfZRC18FLUWcKgRI"
+      }
+    },
+    "running": {
+      "file": "running.db",
+      "sessions": {
+        "P": "ses_NfCgqh6CHONWo5zoQQi7bcySpT",
+        "T": "ses_ekpTabGm8VtU68VtqnlYjfQs52"
+      }
+    },
+    "interrupted": {
+      "file": "interrupted.db",
+      "sessions": {
+        "P": "ses_NfCgqh6CHONWo5zoQQi7bcySpT",
+        "T": "ses_MQnN3x3Ke0EtEM2I8JvaVsjZbR"
+      }
+    },
+    "override": {
+      "file": "override.db",
+      "sessions": {
+        "P": "ses_3CTaMWgtrmRi6X3VujRMlCOhpX",
+        "T": "ses_czZw9XRushgm6LMu8axlUsfVy6",
+        "G": "ses_wyXGFjMCwoBTieYsafL7PGaIpu"
+      }
+    }
+  },
+  "row_allowlist": {
+    "r1.db": {
+      "project": ["b0b905ea8da6b01d4fcc6fe6ce19a6ae0c77f677"],
+      "session_v2": ["ses_NfCgqh6CHONWo5zoQQi7bcySpT", "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe"],
+      "session_message": {
+        "ses_NfCgqh6CHONWo5zoQQi7bcySpT": [559],
+        "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe": [4, 5, 16, 25, 32]
+      }
+    },
+    "default.db": {
+      "project": ["b0b905ea8da6b01d4fcc6fe6ce19a6ae0c77f677"],
+      "session_v2": ["ses_JrSNkYoYCHKt0iqpeIwdV24Pjz", "ses_NfCgqh6CHONWo5zoQQi7bcySpT", "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe", "ses_ZRHTPhPqFkNfZRC18FLUWcKgRI"],
+      "session_message": {
+        "ses_JrSNkYoYCHKt0iqpeIwdV24Pjz": [4, 5, 16, 25, 30],
+        "ses_NfCgqh6CHONWo5zoQQi7bcySpT": [559, 673, 760],
+        "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe": [4, 5, 16, 25, 32, 35, 36, 45, 50],
+        "ses_ZRHTPhPqFkNfZRC18FLUWcKgRI": [4, 5, 16, 25, 32]
+      }
+    },
+    "running.db": {
+      "project": ["b0b905ea8da6b01d4fcc6fe6ce19a6ae0c77f677"],
+      "session_v2": ["ses_NfCgqh6CHONWo5zoQQi7bcySpT", "ses_ekpTabGm8VtU68VtqnlYjfQs52"],
+      "session_message": {
+        "ses_NfCgqh6CHONWo5zoQQi7bcySpT": [790],
+        "ses_ekpTabGm8VtU68VtqnlYjfQs52": [4, 5, 14]
+      }
+    },
+    "interrupted.db": {
+      "project": ["b0b905ea8da6b01d4fcc6fe6ce19a6ae0c77f677"],
+      "session_v2": ["ses_MQnN3x3Ke0EtEM2I8JvaVsjZbR", "ses_NfCgqh6CHONWo5zoQQi7bcySpT"],
+      "session_message": {
+        "ses_MQnN3x3Ke0EtEM2I8JvaVsjZbR": [4, 5, 16],
+        "ses_NfCgqh6CHONWo5zoQQi7bcySpT": [850]
+      }
+    },
+    "override.db": {
+      "project": ["2c2a3ac3eaea8d4297da98e75cc2f90e6c231085"],
+      "session_v2": ["ses_3CTaMWgtrmRi6X3VujRMlCOhpX", "ses_czZw9XRushgm6LMu8axlUsfVy6", "ses_wyXGFjMCwoBTieYsafL7PGaIpu"],
+      "session_message": {
+        "ses_3CTaMWgtrmRi6X3VujRMlCOhpX": [19],
+        "ses_czZw9XRushgm6LMu8axlUsfVy6": [4, 5, 14, 23, 30],
+        "ses_wyXGFjMCwoBTieYsafL7PGaIpu": [4, 5, 14, 23, 28]
+      }
+    }
+  },
+  "links": {
+    "R1": {
+      "snapshot": "r1",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 559,
+      "call_id": "call_2dec2ab2589ffc21a3acae9b99b5e5ab",
+      "background": null,
+      "resume": false,
+      "time": {"created": 1767269837869, "ran": 1767269838345, "completed": 1767269848517},
+      "completion": "terminal",
+      "child_execution": "T.A@r1"
+    },
+    "R1@default": {
+      "snapshot": "default",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 559,
+      "call_id": "call_2dec2ab2589ffc21a3acae9b99b5e5ab",
+      "background": null,
+      "resume": false,
+      "time": {"created": 1767269837869, "ran": 1767269838345, "completed": 1767269848517},
+      "completion": "terminal",
+      "child_execution": "T.A@r1"
+    },
+    "R2.T": {
+      "snapshot": "default",
+      "parent_role": "P",
+      "child_role": "R2.T",
+      "message_seq": 673,
+      "call_id": "call_8fad30dcd33813e077af0fa72b553cd2",
+      "background": true,
+      "resume": false,
+      "time": {"created": 1767269936928, "ran": 1767269936935, "completed": 1767269936971},
+      "completion": "spawn",
+      "child_execution": "R2.T"
+    },
+    "R2.S": {
+      "snapshot": "default",
+      "parent_role": "P",
+      "child_role": "R2.S",
+      "message_seq": 673,
+      "call_id": "call_e8162ce8c1dd64e611f035912a383cc6",
+      "background": true,
+      "resume": false,
+      "time": {"created": 1767269936941, "ran": 1767269936943, "completed": 1767269936965},
+      "completion": "spawn",
+      "child_execution": "R2.S"
+    },
+    "R3.resume": {
+      "snapshot": "default",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 760,
+      "call_id": "call_9b2687c20ce181b1ea9800d5ff2fa290",
+      "background": null,
+      "resume": true,
+      "time": {"created": 1767269993346, "ran": 1767269994109, "completed": 1767270001560},
+      "completion": "terminal",
+      "child_execution": "T.B"
+    },
+    "R5.running": {
+      "snapshot": "running",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 790,
+      "call_id": "call_d8ac2ec83fb34f57978a34fc04326775",
+      "background": true,
+      "resume": false,
+      "time": {"created": 1767270036479, "ran": 1767270037450, "completed": 1767270037489},
+      "completion": "spawn",
+      "child_execution": "R5.running"
+    },
+    "R5.interrupted": {
+      "snapshot": "interrupted",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 850,
+      "call_id": "call_adbb48daf9dafae830af9e0d224cebca",
+      "background": true,
+      "resume": false,
+      "time": {"created": 1767270088051, "ran": 1767270089304, "completed": 1767270089352},
+      "completion": "spawn",
+      "child_execution": "R5.interrupted"
+    },
+    "L2.P-T": {
+      "snapshot": "override",
+      "parent_role": "P",
+      "child_role": "T",
+      "message_seq": 19,
+      "call_id": "call_97326dee1553819e3fe0c46e723dac35",
+      "background": null,
+      "resume": false,
+      "time": {"created": 1767270219071, "ran": 1767270219672, "completed": 1767270236917},
+      "completion": "terminal",
+      "child_execution": "L2.T"
+    },
+    "L2.T-G": {
+      "snapshot": "override",
+      "parent_role": "T",
+      "child_role": "G",
+      "message_seq": 14,
+      "call_id": "call_3d2c466186041b2cec9c1c87fd9dc96e",
+      "background": null,
+      "resume": false,
+      "time": {"created": 1767270226277, "ran": 1767270226847, "completed": 1767270234176},
+      "completion": "terminal",
+      "child_execution": "L2.G"
+    }
+  },
+  "executions": {
+    "T.A@r1": {
+      "snapshot": "r1",
+      "role": "T",
+      "segment": [4, 32],
+      "user_seq": 4,
+      "user_message_id": "msg_qn9Nm9lAM88DnBsu9IEghMHl4B",
+      "assistant_seqs": [5, 16, 25],
+      "assistant_message_ids": ["msg_2ou44EfXGCu7cZCEaovIsRGV3h", "msg_25Ne9zBW9IwdcZ1GitlrhIVdnw", "msg_rh4cFygGUa1fCXROUXSDo5BkiI"],
+      "usage_seqs": [5, 16, 25],
+      "idle_seq": 32,
+      "idle_message_id": "msg_AxnrGiigvGyANXIfJokuAxgduJ",
+      "started_at": 1767269838415,
+      "ended_at": 1767269848514,
+      "elapsed_ms": 10099,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "T.B": {
+      "snapshot": "default",
+      "role": "T",
+      "segment": [35, 50],
+      "user_seq": 35,
+      "user_message_id": "msg_D1vhyAAnkb61jlssqYaSAVIr3e",
+      "assistant_seqs": [36, 45],
+      "assistant_message_ids": ["msg_TypjJZXLFOP5WyyOAWdD5oov0G", "msg_l54poqLPeVo8pYc51XD6zhEZVm"],
+      "usage_seqs": [36, 45],
+      "idle_seq": 50,
+      "idle_message_id": "msg_1qDzKsIL1qxn1z9Xik60XlaWy1",
+      "started_at": 1767269994128,
+      "ended_at": 1767270001557,
+      "elapsed_ms": 7429,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 303, "output_tokens": 49, "reasoning_tokens": 87, "cache_read_tokens": 24448, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 10503, "output_tokens": 115, "reasoning_tokens": 298, "cache_read_tokens": 49152, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R2.T": {
+      "snapshot": "default",
+      "role": "R2.T",
+      "segment": [4, 32],
+      "user_seq": 4,
+      "user_message_id": "msg_yN0uv8mE1U0aqWIzfmhiDQ4mu9",
+      "assistant_seqs": [5, 16, 25],
+      "assistant_message_ids": ["msg_RKG4bmgt4xE3jfyer0n6gapz23", "msg_9KyxeTTiQnke9s0ZSTa5DWul5v", "msg_gAHa0P9zxVxlgcOUEv3ZisxJn2"],
+      "usage_seqs": [5, 16, 25],
+      "idle_seq": 32,
+      "idle_message_id": "msg_EZfC4uuG5sduMtORNwzTaePrwA",
+      "started_at": 1767269937006,
+      "ended_at": 1767269946720,
+      "elapsed_ms": 9714,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 1736, "output_tokens": 66, "reasoning_tokens": 226, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 1736, "output_tokens": 66, "reasoning_tokens": 226, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R2.S": {
+      "snapshot": "default",
+      "role": "R2.S",
+      "segment": [4, 30],
+      "user_seq": 4,
+      "user_message_id": "msg_Uq7826W2s0MR0817uxnbj83z07",
+      "assistant_seqs": [5, 16, 25],
+      "assistant_message_ids": ["msg_Jv53xLNe8aqRCPz3C002V8Uomf", "msg_18TiT0JN0lsAbs0GWCKZyohcP2", "msg_33OQwFMqFhdxQWVPDiyAWek8CZ"],
+      "usage_seqs": [5, 16, 25],
+      "idle_seq": 30,
+      "idle_message_id": "msg_Wns5TerK6Y0TSQmdSeGjHWs0z0",
+      "started_at": 1767269936982,
+      "ended_at": 1767269949015,
+      "elapsed_ms": 12033,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 1700, "output_tokens": 61, "reasoning_tokens": 232, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 1700, "output_tokens": 61, "reasoning_tokens": 232, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R5.running": {
+      "snapshot": "running",
+      "role": "T",
+      "segment": [4, 14],
+      "user_seq": 4,
+      "user_message_id": "msg_j6hE3nMjPps84H64JXWixQcFBX",
+      "assistant_seqs": [5, 14],
+      "assistant_message_ids": ["msg_74t79AOopv0EY6ptC7q7iJrm7C", "msg_qSZBHF925V6mxGx4JbGOyZbbA3"],
+      "usage_seqs": [5],
+      "idle_seq": null,
+      "idle_message_id": null,
+      "started_at": 1767270037512,
+      "ended_at": null,
+      "elapsed_ms": null,
+      "status": "running",
+      "open_tool": {"assistant_seq": 14, "content_index": 1, "name": "shell", "status": "running"},
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 199, "output_tokens": 28, "reasoning_tokens": 115, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 199, "output_tokens": 28, "reasoning_tokens": 115, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R5.interrupted": {
+      "snapshot": "interrupted",
+      "role": "T",
+      "segment": [4, 16],
+      "user_seq": 4,
+      "user_message_id": "msg_kXMwQQyD532f3j4pMZXamYa01B",
+      "assistant_seqs": [5],
+      "assistant_message_ids": ["msg_4czsncpDnDt9phXis4tnq3O7hh"],
+      "usage_seqs": [5],
+      "idle_seq": 16,
+      "idle_message_id": "msg_gCGtyc14pvq7edBgFWUXKwFCvd",
+      "started_at": 1767270089366,
+      "ended_at": 1767270126599,
+      "elapsed_ms": 37233,
+      "status": "interrupted",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 214, "output_tokens": 65, "reasoning_tokens": 298, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 214, "output_tokens": 65, "reasoning_tokens": 298, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "L2.T": {
+      "snapshot": "override",
+      "role": "T",
+      "segment": [4, 30],
+      "user_seq": 4,
+      "user_message_id": "msg_qZ7cHx05gkKBWOxG0LjkEVfQte",
+      "assistant_seqs": [5, 14, 23],
+      "assistant_message_ids": ["msg_sFqRmBd2UxHYgf0xsnkY0kiHUf", "msg_iSiY9f6ueUzRLPH8EwjGFqbuWO", "msg_dohrlrhp10bpf7weJc906HWqlx"],
+      "usage_seqs": [5, 14, 23],
+      "idle_seq": 30,
+      "idle_message_id": "msg_kLBQQuoi7Bv4Y6pAkD8u4tjum0",
+      "started_at": 1767270219738,
+      "ended_at": 1767270236913,
+      "elapsed_ms": 17175,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 1544, "output_tokens": 131, "reasoning_tokens": 204, "cache_read_tokens": 2560, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 1544, "output_tokens": 131, "reasoning_tokens": 204, "cache_read_tokens": 2560, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "L2.G": {
+      "snapshot": "override",
+      "role": "G",
+      "segment": [4, 28],
+      "user_seq": 4,
+      "user_message_id": "msg_f96xbtLgCR4YuXSFx7GAWbPpdf",
+      "assistant_seqs": [5, 14, 23],
+      "assistant_message_ids": ["msg_E4tEYsgzE3FohC0RQ81Gm4vx4Z", "msg_GgfBRalhxhn79y98cjTrbfheJQ", "msg_vsDDDMGcxCbgX9ZYyZy1AdtsO9"],
+      "usage_seqs": [5, 14, 23],
+      "idle_seq": 28,
+      "idle_message_id": "msg_00oMoOBLGBHxb5eWHkZWAwJcr2",
+      "started_at": 1767270226882,
+      "ended_at": 1767270234166,
+      "elapsed_ms": 7284,
+      "status": "succeeded",
+      "model": {"id": "gpt-5.6-sol-fast", "providerID": "openai", "variant": "max"},
+      "tokens": {"input_tokens": 11691, "output_tokens": 57, "reasoning_tokens": 107, "cache_read_tokens": 21376, "cache_write_tokens": 0, "total_tokens": null},
+      "session_cumulative": {"input_tokens": 11691, "output_tokens": 57, "reasoning_tokens": 107, "cache_read_tokens": 21376, "cache_write_tokens": 0, "total_tokens": null}
+    }
+  },
+  "cases": {
+    "R1": {
+      "target": "T.A@r1",
+      "included": ["T.A@r1"],
+      "excluded": ["P"],
+      "self": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+      "subtree": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R2": {
+      "target": "R2.T",
+      "included": ["R2.T"],
+      "excluded": ["R2.S", "P", "T.A@r1", "T.B"],
+      "self": {"input_tokens": 1736, "output_tokens": 66, "reasoning_tokens": 226, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null},
+      "subtree": {"input_tokens": 1736, "output_tokens": 66, "reasoning_tokens": 226, "cache_read_tokens": 33152, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R3": {
+      "baseline_execution": "T.A@r1",
+      "target_execution": "T.B",
+      "session_id": "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe",
+      "choices": [4, 35],
+      "selected_user_message_id": "msg_D1vhyAAnkb61jlssqYaSAVIr3e",
+      "delta": {"input_tokens": 303, "output_tokens": 49, "reasoning_tokens": 87, "cache_read_tokens": 24448, "cache_write_tokens": 0, "total_tokens": null}
+    },
+    "R5-running": {
+      "target": "R5.running",
+      "known_self": {"input_tokens": 199, "output_tokens": 28, "reasoning_tokens": 115, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null},
+      "final_self": null
+    },
+    "R5-interrupted": {
+      "target": "R5.interrupted",
+      "self": {"input_tokens": 214, "output_tokens": 65, "reasoning_tokens": 298, "cache_read_tokens": 10496, "cache_write_tokens": 0, "total_tokens": null},
+      "status": "interrupted",
+      "completeness": "complete"
+    },
+    "L2": {
+      "target": "L2.T",
+      "included": ["L2.T", "L2.G"],
+      "self": {"input_tokens": 1544, "output_tokens": 131, "reasoning_tokens": 204, "cache_read_tokens": 2560, "cache_write_tokens": 0, "total_tokens": null},
+      "subtree": {"input_tokens": 13235, "output_tokens": 188, "reasoning_tokens": 311, "cache_read_tokens": 23936, "cache_write_tokens": 0, "total_tokens": null}
+    }
+  },
+  "api": {
+    "running-active": {"file": "api/running-active.json", "snapshot": "running", "role": "T", "state": "running"},
+    "interrupt-running-active": {"file": "api/interrupt-running-active.json", "snapshot": "interrupted", "role": "T", "state": "running"},
+    "interrupt-response": {"file": "api/interrupt-response.json", "snapshot": "interrupted", "role": "T", "state": null},
+    "interrupted-active": {"file": "api/interrupted-active.json", "snapshot": "interrupted", "role": "T", "state": null}
+  }
+}

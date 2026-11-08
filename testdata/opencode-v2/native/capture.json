@@ -1,0 +1,89 @@
+{
+  "product": "opencode-v2",
+  "collection_date": "2026-11-10",
+  "native_version": "2.2.1",
+  "executable_sha256": "f6c7a2247266391fe0aebcd7d84146d4a9c7e79da47a168dda2fb2aa57894eee",
+  "os": {
+    "name": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64"
+  },
+  "primary": {
+    "launch": "interactive OpenCode V2 session acting as orchestrator P",
+    "model_provider": "openai",
+    "model": "gpt-5.6-sol-fast",
+    "variant": "max",
+    "children": "native subagent tool calls using general and explore agents; both synchronous and background calls retained",
+    "reuse": "subagent call with the returned sessionID",
+    "interrupt": "official session interrupt API after an active-state response",
+    "OPENCODE_DB_override_present": false,
+    "record_database": "<home>/.local/share/opencode/opencode.db",
+    "native_tables": ["project", "session_v2", "session_message"],
+    "snapshot_method": "SQLite Online Backup into private files outside the repository, followed by immutable read-only selection. Live database, WAL, and SHM files were never copied into the fixture.",
+    "active_and_interrupt_evidence": [
+      "records/api/running-active.json",
+      "records/api/interrupt-running-active.json",
+      "records/api/interrupt-response.json",
+      "records/api/interrupted-active.json"
+    ]
+  },
+  "override": {
+    "launch": "separate OpenCode process",
+    "OPENCODE_DB_set_before_launch": true,
+    "OPENCODE_DB_value": "<isolated-database-file>",
+    "native_database_created": "<isolated-database-file>",
+    "lineage": "standalone P to T to G hierarchy created in that database",
+    "file_move_is_not_evidence": true
+  },
+  "counter_semantics": {
+    "per_message": "assistant session_message data.tokens are increments and are summed once per native responseId inside one invocation; session_message id is the fallback when responseId is absent, and repeated response identities must have matching usage and model evidence",
+    "session": "session_v2 token columns are cumulative across every invocation in that session",
+    "observed_components": ["input", "output", "reasoning", "cache read", "cache write"],
+    "native_total_counter_present": false,
+    "cache_write_observed_zero_is_numeric": true
+  },
+  "coverage": {
+    "R1": "captured",
+    "R2_sibling": "captured",
+    "R2_grandchild": "captured_in_standalone_L2_lineage",
+    "R3": "captured",
+    "R4": "uncollected",
+    "R5_running": "captured",
+    "R5_interrupted": "captured",
+    "R5_explicit_failed": "uncollected",
+    "R6_basic": "captured",
+    "R6_model_change_reset_compaction": "uncollected",
+    "R7_nonpersistent": "uncollected",
+    "L1": "captured_primary",
+    "L2": "captured_OPENCODE_DB",
+    "L3": "derived_recipes_verified",
+    "L4": "derived_recipes_verified"
+  },
+  "privacy": {
+    "classification": "real-derived",
+    "time_shift_days": -313,
+    "all_numeric_counters_and_durations_unchanged": true,
+    "identifiers": "consistent deterministic pseudonyms preserving observed identifier prefixes and lengths",
+    "bodies": "prompt, message, reasoning, command, path, and tool bodies are empty; only linkage, lifecycle, model, counters, and clocks remain",
+    "database_reconstruction": "new databases contain only allow-listed schema and selected rows; no private database pages, freelist entries, WAL, or SHM are distributed",
+    "source_labels": "private snapshot and API filenames are replaced by fixed public provenance labels",
+    "source_unchanged": "During capture, private snapshots were opened immutable and read-only and each source hash was compared before and after minimization; a deterministic full rebuild also confirmed byte identity"
+  },
+  "review": {
+    "tier": 2,
+    "independent_review": true,
+    "tier_3_needed": false,
+    "accepted_findings": [
+      "Verify public metadata privacy and the retained first-invocation baseline.",
+      "Cross-check session idle state, open running tool state, complete retained subagent topology, and actual subtree membership.",
+      "Freeze full SQLite DDL and an independent row allowlist, SQL and JSON clocks, synchronous ordering, exact counter types, and first unique idle boundaries.",
+      "Reject unknown selected message types while allowing links-only selection to omit unrelated native record kinds.",
+      "Match source table and index semantics before reconstruction, confine manifest paths, refuse existing outputs, and publish atomically.",
+      "Allow-list every retained capture label and replace private source filenames with fixed public provenance labels.",
+      "Prove the first reused invocation's user-to-first-unique-idle boundary before using its cumulative baseline.",
+      "Deduplicate usage by native response identity, with message identity only as the missing-response fallback."
+    ]
+  },
+  "native_adapter_cli_support_claimed": false
+}
