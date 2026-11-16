@@ -30,8 +30,7 @@ func (claudeCode) Name() string { return "claude-code" }
 func (codex) Name() string      { return "codex" }
 func (openCode) Name() string   { return "opencode-v2" }
 
-func (claudeCode) Read(Request) (ReadResult, error) { return unsupported("claude-code") }
-func (openCode) Read(Request) (ReadResult, error)   { return unsupported("opencode-v2") }
+func (openCode) Read(Request) (ReadResult, error) { return unsupported("opencode-v2") }
 
 func unsupported(product string) (ReadResult, error) {
 	return ReadResult{Diagnostics: []Diagnostic{{

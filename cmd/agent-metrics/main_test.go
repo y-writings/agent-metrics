@@ -113,6 +113,35 @@ func TestCodexCLISelectsReusedExecution(t *testing.T) {
 	}
 }
 
+func TestClaudeCLIMeasuresReturnedAgent(t *testing.T) {
+	root := moduleRoot(t)
+	records := filepath.Join(root, "testdata/claude-code/native/records/r1/projects")
+	stdout, code := collectCLI(t, "claude-code", "ada3d4768bc8b8ec8", "", records)
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stdout)
+	}
+	decoded := decodeReport(t, []byte(stdout))
+	if usageTotal(t, decoded, "self") != 25414 || elapsedOf(t, decoded) != 5437 || decoded["status"] != "completed" {
+		t.Fatalf("metrics: %s", stdout)
+	}
+	self := decoded["usage"].(map[string]any)["self"].([]any)
+	if self[0].(map[string]any)["provider"] != nil {
+		t.Fatalf("provider must be null: %s", stdout)
+	}
+	stdout, code = collectCLI(t, "claude-code", "ada3d4768bc8b8ec8", "", filepath.Join(root, "testdata/claude-code/native/records/default/projects"))
+	if code != 1 {
+		t.Fatalf("ambiguous exit %d\n%s", code, stdout)
+	}
+	stdout, code = collectCLI(t, "claude-code", "ada3d4768bc8b8ec8", "b3d9191c-6c78-4c2d-a207-cdb53f2ea0a8", filepath.Join(root, "testdata/claude-code/native/records/default/projects"))
+	if code != 0 {
+		t.Fatalf("selected exit %d\n%s", code, stdout)
+	}
+	decoded = decodeReport(t, []byte(stdout))
+	if usageTotal(t, decoded, "self") != 60121 || usageTotal(t, decoded, "subtree") != 85659 || elapsedOf(t, decoded) != 14826 {
+		t.Fatalf("T.B metrics: %s", stdout)
+	}
+}
+
 func collectCLI(t *testing.T, product, agent, execution, records string) (string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
