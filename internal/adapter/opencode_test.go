@@ -38,6 +38,52 @@ func TestOpenCodeR1AndReuse(t *testing.T) {
 	}
 }
 
+func TestOpenCodeReusedChildKeepsSeparateParents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "reuse.db")
+	writeOpenCodeDB(t, path, []string{
+		`CREATE TABLE session_v2 (id TEXT PRIMARY KEY, parent_id TEXT, model TEXT, time_created INTEGER, tokens_input INTEGER, tokens_output INTEGER, tokens_reasoning INTEGER, tokens_cache_read INTEGER, tokens_cache_write INTEGER)`,
+		`CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, time_updated INTEGER, data TEXT)`,
+		`INSERT INTO session_v2 VALUES ('ses_parent', NULL, '{"id":"m","providerID":"openai"}', 1000, NULL, NULL, NULL, NULL, NULL)`,
+		`INSERT INTO session_v2 VALUES ('ses_child', 'ses_parent', '{"id":"m","providerID":"openai"}', 1100, NULL, NULL, NULL, NULL, NULL)`,
+		`INSERT INTO session_message VALUES ('msg_p1', 'ses_parent', 'user', 1, 1000, 1000, '{"time":{"created":1000}}')`,
+		`INSERT INTO session_message VALUES ('msg_p1a', 'ses_parent', 'assistant', 2, 1100, 1100, '{"time":{"created":1100},"model":{"id":"m","providerID":"openai"},"native":{"responseId":"resp-p1"},"tokens":{"input":10,"output":1,"reasoning":0,"cache":{"read":0,"write":0}},"content":[{"type":"tool","name":"subagent","state":{"status":"completed","metadata":{"sessionID":"ses_child"}}}]}')`,
+		`INSERT INTO session_message VALUES ('msg_p1i', 'ses_parent', 'idle', 3, 2000, 2000, '{"time":{"created":2000},"outcome":"succeeded"}')`,
+		`INSERT INTO session_message VALUES ('msg_p2', 'ses_parent', 'user', 4, 3000, 3000, '{"time":{"created":3000}}')`,
+		`INSERT INTO session_message VALUES ('msg_p2a', 'ses_parent', 'assistant', 5, 3100, 3100, '{"time":{"created":3100},"model":{"id":"m","providerID":"openai"},"native":{"responseId":"resp-p2"},"tokens":{"input":20,"output":1,"reasoning":0,"cache":{"read":0,"write":0}},"content":[{"type":"tool","name":"subagent","state":{"status":"completed","input":{"sessionID":"ses_child"}}}]}')`,
+		`INSERT INTO session_message VALUES ('msg_p2i', 'ses_parent', 'idle', 6, 4000, 4000, '{"time":{"created":4000},"outcome":"succeeded"}')`,
+		`INSERT INTO session_message VALUES ('msg_c1', 'ses_child', 'user', 1, 1200, 1200, '{"time":{"created":1200}}')`,
+		`INSERT INTO session_message VALUES ('msg_c1a', 'ses_child', 'assistant', 2, 1300, 1300, '{"time":{"created":1300},"model":{"id":"m","providerID":"openai"},"native":{"responseId":"resp-c1"},"tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}}')`,
+		`INSERT INTO session_message VALUES ('msg_c1i', 'ses_child', 'idle', 3, 1400, 1400, '{"time":{"created":1400},"outcome":"succeeded"}')`,
+		`INSERT INTO session_message VALUES ('msg_c2', 'ses_child', 'user', 4, 3200, 3200, '{"time":{"created":3200}}')`,
+		`INSERT INTO session_message VALUES ('msg_c2a', 'ses_child', 'assistant', 5, 3300, 3300, '{"time":{"created":3300},"model":{"id":"m","providerID":"openai"},"native":{"responseId":"resp-c2"},"tokens":{"input":2,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}}')`,
+		`INSERT INTO session_message VALUES ('msg_c2i', 'ses_child', 'idle', 6, 3400, 3400, '{"time":{"created":3400},"outcome":"succeeded"}')`,
+	})
+	first := measureOpenCode(t, "ses_parent", "msg_p1", path)
+	assertOpenCode(t, first.Usage.Self, 10, 1, 0, 0, 0)
+	assertOpenCode(t, first.Usage.Subtree, 11, 2, 0, 0, 0)
+	second := measureOpenCode(t, "ses_parent", "msg_p2", path)
+	assertOpenCode(t, second.Usage.Self, 20, 1, 0, 0, 0)
+	assertOpenCode(t, second.Usage.Subtree, 22, 2, 0, 0, 0)
+}
+
+func TestOpenCodeChildSessionWithoutMessagesStaysPartial(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "empty-child.db")
+	writeOpenCodeDB(t, path, []string{
+		`CREATE TABLE session_v2 (id TEXT PRIMARY KEY, parent_id TEXT, model TEXT, time_created INTEGER, tokens_input INTEGER, tokens_output INTEGER, tokens_reasoning INTEGER, tokens_cache_read INTEGER, tokens_cache_write INTEGER)`,
+		`CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, time_updated INTEGER, data TEXT)`,
+		`INSERT INTO session_v2 VALUES ('ses_parent', NULL, '{"id":"m","providerID":"openai"}', 1000, NULL, NULL, NULL, NULL, NULL)`,
+		`INSERT INTO session_v2 VALUES ('ses_empty', 'ses_parent', '{"id":"m","providerID":"openai"}', 1100, NULL, NULL, NULL, NULL, NULL)`,
+		`INSERT INTO session_message VALUES ('msg_p', 'ses_parent', 'user', 1, 1000, 1000, '{"time":{"created":1000}}')`,
+		`INSERT INTO session_message VALUES ('msg_a', 'ses_parent', 'assistant', 2, 1100, 1100, '{"time":{"created":1100},"model":{"id":"m","providerID":"openai"},"native":{"responseId":"resp-p"},"tokens":{"input":7,"output":1,"reasoning":0,"cache":{"read":0,"write":0}},"content":[{"type":"tool","name":"subagent","state":{"status":"completed","metadata":{"sessionID":"ses_empty"}}}]}')`,
+		`INSERT INTO session_message VALUES ('msg_i', 'ses_parent', 'idle', 3, 2000, 2000, '{"time":{"created":2000},"outcome":"succeeded"}')`,
+	})
+	got := measureOpenCode(t, "ses_parent", "", path)
+	assertOpenCode(t, got.Usage.Self, 7, 1, 0, 0, 0)
+	if got.Usage.SubtreeCompleteness != "partial" || got.Completeness != "partial" || !hasCode(got.Diagnostics, "missing_descendant") {
+		t.Fatalf("session row without messages must not look childless: %+v", got)
+	}
+}
+
 func TestOpenCodeDelegationAndState(t *testing.T) {
 	root := moduleRoot(t)
 	records := filepath.Join(root, "testdata/opencode-v2/native/records")
@@ -232,6 +278,20 @@ func walDatabase(t *testing.T) (string, string) {
 	mainOnly := filepath.Join(t.TempDir(), "main-only.db")
 	copyFile(t, path, mainOnly)
 	return path, mainOnly
+}
+
+func writeOpenCodeDB(t *testing.T, path string, statements []string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range statements {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func copyFile(t *testing.T, source, destination string) {

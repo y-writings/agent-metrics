@@ -27,6 +27,24 @@ func TestClaudeR1ReturnedAgent(t *testing.T) {
 	}
 }
 
+func TestClaudeSingleTranscriptKeepsExecutionIdentity(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(root, "testdata/claude-code/native/records/r1/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl")
+	got := measureClaude(t, "ada3d4768bc8b8ec8", "", path)
+	if got.Target.ExecutionID == nil || *got.Target.ExecutionID != "db05adb4-2980-4b84-909b-d2481043a8ca" || hasCode(got.Diagnostics, "missing_execution_id") {
+		t.Fatalf("single transcript must keep the start user id: %+v diagnostics %+v", got.Target, got.Diagnostics)
+	}
+	assertTokens(t, got.Usage.Self, 4, 11533, 13718, 159, 0, 25414)
+	if got.Timing.ElapsedMilliseconds != nil {
+		t.Fatalf("parent stop notification is outside this file: %+v", got.Timing)
+	}
+	selected := measureClaude(t, "ada3d4768bc8b8ec8", "db05adb4-2980-4b84-909b-d2481043a8ca", path)
+	if selected.Completeness == "incomplete" || selected.Target.ExecutionID == nil || *selected.Target.ExecutionID != "db05adb4-2980-4b84-909b-d2481043a8ca" {
+		t.Fatalf("explicit execution must resolve inside the transcript: %+v", selected.Target)
+	}
+	assertTokens(t, selected.Usage.Self, 4, 11533, 13718, 159, 0, 25414)
+}
+
 func TestClaudeMultipleTurnsAndReuse(t *testing.T) {
 	root := moduleRoot(t)
 	records := filepath.Join(root, "testdata/claude-code/native/records/default/projects")

@@ -59,7 +59,7 @@ type openCodeMessage struct {
 	created                                        int64
 	outcome                                        string
 	tokens                                         *openCodeCounters
-	childSession                                   string
+	childSessions                                  []string
 	unknown                                        bool
 }
 
@@ -162,7 +162,7 @@ func queryOpenCodeMessages(tx *sql.Tx) ([]openCodeMessage, error) {
 			message.responseID, _ = native["responseId"].(string)
 		}
 		message.tokens = openCodeTokens(payload["tokens"])
-		message.childSession = subagentSession(payload["content"])
+		message.childSessions = subagentSessions(payload["content"])
 		messages = append(messages, message)
 	}
 	return messages, rows.Err()
@@ -189,7 +189,7 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 	for sessionID, sessionExecutions := range executions {
 		for index := range sessionExecutions {
 			execution := &sessionExecutions[index]
-			execution.parentExec = openCodeParentExecution(sessionID, sessions, executions, messages)
+			execution.parentExec = openCodeParentFor(sessionExecutions, index, executions, messages)
 			result.Events = append(result.Events, Event{
 				ID: execution.startID, Session: sessionID, SourceSession: sessionID, Execution: execution.id,
 				ParentExecution: execution.parentExec, Kind: "execution_start", Status: "running", Time: millis(execution.start),
@@ -213,17 +213,19 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 		}
 	}
 	for _, message := range messages {
-		if message.childSession == "" || !included[message.session] || len(executions[message.childSession]) > 0 {
-			continue
-		}
-		if _, ok := sessions[message.childSession]; ok {
+		if len(message.childSessions) == 0 || !included[message.session] {
 			continue
 		}
 		parentExec := executionAt(executions[message.session], message.seq, bySession[message.session])
-		result.Delegations = append(result.Delegations, Delegation{
-			ParentAgentID: message.session, ChildAgentID: message.childSession, SourceID: message.id,
-			Parent: &ExecutionRef{AgentID: message.session, ExecutionID: parentExec},
-		})
+		for _, child := range message.childSessions {
+			if len(executions[child]) > 0 {
+				continue
+			}
+			result.Delegations = append(result.Delegations, Delegation{
+				ParentAgentID: message.session, ChildAgentID: child, SourceID: message.id,
+				Parent: &ExecutionRef{AgentID: message.session, ExecutionID: parentExec},
+			})
+		}
 	}
 	return result
 }
@@ -283,29 +285,37 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []o
 	return executions
 }
 
-func openCodeParentExecution(child string, sessions map[string]openCodeSession, executions map[string][]openCodeExecution, messages []openCodeMessage) string {
-	parent := sessions[child].parent
-	if parent == "" {
+func openCodeParentFor(childExecs []openCodeExecution, index int, executions map[string][]openCodeExecution, messages []openCodeMessage) string {
+	if index < 0 || index >= len(childExecs) {
 		return ""
 	}
-	var parentMessages []openCodeMessage
+	child := childExecs[index].session
+	var refs []string
 	for _, message := range messages {
-		if message.session == parent {
-			parentMessages = append(parentMessages, message)
+		for _, id := range message.childSessions {
+			if id != child {
+				continue
+			}
+			parentExec := executionAt(executions[message.session], message.seq, messagesForSession(messages, message.session))
+			if parentExec != "" {
+				refs = append(refs, parentExec)
+			}
 		}
 	}
-	for _, message := range parentMessages {
-		if message.childSession != child {
-			continue
-		}
-		if id := executionAt(executions[parent], message.seq, parentMessages); id != "" {
-			return id
-		}
-	}
-	if len(executions[parent]) == 1 {
-		return executions[parent][0].id
+	if len(refs) == len(childExecs) {
+		return refs[index]
 	}
 	return ""
+}
+
+func messagesForSession(messages []openCodeMessage, session string) []openCodeMessage {
+	var selected []openCodeMessage
+	for _, message := range messages {
+		if message.session == session {
+			selected = append(selected, message)
+		}
+	}
+	return selected
 }
 
 func executionAt(executions []openCodeExecution, seq int, messages []openCodeMessage) string {
@@ -369,27 +379,31 @@ func openCodeCountersPresent(counters openCodeCounters) bool {
 	return counters.input != nil || counters.output != nil || counters.reasoning != nil || counters.cacheRead != nil || counters.cacheWrite != nil
 }
 
-func subagentSession(content any) string {
+func subagentSessions(content any) []string {
 	items, ok := content.([]any)
 	if !ok {
-		return ""
+		return nil
 	}
+	var ids []string
 	for _, item := range items {
 		block, ok := item.(map[string]any)
 		if !ok || block["type"] != "tool" || block["name"] != "subagent" {
 			continue
 		}
 		state, _ := block["state"].(map[string]any)
-		metadata, _ := state["metadata"].(map[string]any)
-		if id, _ := metadata["sessionID"].(string); id != "" {
-			return id
+		if metadata, ok := state["metadata"].(map[string]any); ok {
+			if id, _ := metadata["sessionID"].(string); id != "" {
+				ids = append(ids, id)
+				continue
+			}
 		}
-		input, _ := state["input"].(map[string]any)
-		if id, _ := input["sessionID"].(string); id != "" {
-			return id
+		if input, ok := state["input"].(map[string]any); ok {
+			if id, _ := input["sessionID"].(string); id != "" {
+				ids = append(ids, id)
+			}
 		}
 	}
-	return ""
+	return ids
 }
 
 func openCodeModel(raw string) (model, provider string) {

@@ -259,7 +259,7 @@ func buildClaudeAgents(transcripts []claudeTranscript) (map[string][]claudeExecu
 	notes := claudeNotes(transcripts)
 	agents := map[string][]claudeExecution{}
 	for _, transcript := range transcripts {
-		if transcript.agentID == "" || !strings.Contains(transcript.rel, "/subagents/") {
+		if transcript.agentID == "" || !claudeSubagentTranscript(transcript.rel) {
 			continue
 		}
 		executions := claudeSegments(transcript)
@@ -758,6 +758,11 @@ func firstToolUse(content any) (name, id, to string) {
 		return name, id, to
 	}
 	return "", "", ""
+}
+
+func claudeSubagentTranscript(rel string) bool {
+	base := filepath.Base(rel)
+	return strings.Contains(rel, "/subagents/") || (strings.HasPrefix(base, "agent-") && strings.HasSuffix(base, ".jsonl"))
 }
 
 func claudeAgentFromPath(path string) string {
