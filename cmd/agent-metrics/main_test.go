@@ -142,6 +142,19 @@ func TestClaudeCLIMeasuresReturnedAgent(t *testing.T) {
 	}
 }
 
+func TestOpenCodeCLIMeasuresReturnedSession(t *testing.T) {
+	records := filepath.Join(moduleRoot(t), "testdata/opencode-v2/native/records/r1.db")
+	stdout, code := collectCLI(t, "opencode-v2", "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe", "", records)
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stdout)
+	}
+	decoded := decodeReport(t, []byte(stdout))
+	self := decoded["usage"].(map[string]any)["self"].([]any)[0].(map[string]any)["tokens"].(map[string]any)
+	if self["input"].(float64) != 10200 || self["output"].(float64) != 66 || self["total"] != nil || elapsedOf(t, decoded) != 10099 || decoded["status"] != "succeeded" {
+		t.Fatalf("metrics: %s", stdout)
+	}
+}
+
 func collectCLI(t *testing.T, product, agent, execution, records string) (string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
