@@ -39,7 +39,7 @@ func (claudeCode) Read(req Request) (ReadResult, error) {
 			Code: "agent_not_found", Message: "requested agent was not found", Scope: "agent", AgentID: req.Agent,
 		}}}, nil
 	}
-	included := claudeIncludedAgents(req.Agent, transcripts)
+	included := claudeIncludedAgents(req.Agent, transcripts, refs)
 	return buildClaudeResult(req.Agent, included, agents, refs, transcripts), nil
 }
 
@@ -564,7 +564,7 @@ func buildClaudeResult(target string, included map[string]bool, agents map[strin
 		}
 	}
 	for child, matched := range refs {
-		if claudeChildLinked(agents[child]) {
+		if claudeChildLinked(agents[child]) && included[child] {
 			continue
 		}
 		for _, ref := range matched {
@@ -627,7 +627,7 @@ func toolResultID(content any) string {
 	return ""
 }
 
-func claudeIncludedAgents(target string, transcripts []claudeTranscript) map[string]bool {
+func claudeIncludedAgents(target string, transcripts []claudeTranscript, refs map[string][]claudeRef) map[string]bool {
 	parent := map[string]string{}
 	for _, transcript := range transcripts {
 		if transcript.agentID != "" {
@@ -643,6 +643,19 @@ func claudeIncludedAgents(target string, transcripts []claudeTranscript) map[str
 			}
 			included[agent] = true
 			changed = true
+		}
+		for child, matched := range refs {
+			if included[child] {
+				continue
+			}
+			for _, ref := range matched {
+				if ref.parentAgent == "" || ref.parentExec == "" || !included[ref.parentAgent] {
+					continue
+				}
+				included[child] = true
+				changed = true
+				break
+			}
 		}
 	}
 	return included

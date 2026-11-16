@@ -153,6 +153,27 @@ func TestClaudeMissingMessageIDKeepsUsagePartial(t *testing.T) {
 	}
 }
 
+func TestClaudeMissingMetaKeepsLaunchLinkedChild(t *testing.T) {
+	root := moduleRoot(t)
+	projects := filepath.Join(t.TempDir(), "projects")
+	if output, err := exec.Command("cp", "-a", filepath.Join(root, "testdata/claude-code/native/records/default/projects"), projects).CombinedOutput(); err != nil {
+		t.Fatalf("copy projects: %v\n%s", err, output)
+	}
+	meta := filepath.Join(projects, "-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ac4c73eec0456b131.meta.json")
+	if err := os.Remove(meta); err != nil {
+		t.Fatal(err)
+	}
+	got := measureClaude(t, "ada3d4768bc8b8ec8", "b3d9191c-6c78-4c2d-a207-cdb53f2ea0a8", projects)
+	assertTotal(t, got.Usage.Self, 60121)
+	assertTotal(t, got.Usage.Subtree, 85659)
+	if got.Completeness != "complete" || got.Usage.SubtreeCompleteness != "complete" || hasCode(got.Diagnostics, "missing_descendant") {
+		t.Fatalf("a launch-linked child transcript must stay in the subtree without its meta sidecar: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 14826 {
+		t.Fatalf("elapsed: %+v", got.Timing)
+	}
+}
+
 func TestClaudeDuplicateLaunchReferenceStillLinksChild(t *testing.T) {
 	root := moduleRoot(t)
 	projects := filepath.Join(t.TempDir(), "projects")
