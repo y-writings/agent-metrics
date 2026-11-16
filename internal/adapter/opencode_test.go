@@ -38,6 +38,38 @@ func TestOpenCodeR1AndReuse(t *testing.T) {
 	}
 }
 
+func TestOpenCodeMissingResponseUsageStaysPartial(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(t.TempDir(), "missing-response.db")
+	copyFile(t, filepath.Join(root, "testdata/opencode-v2/native/records/r1.db"), path)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var data string
+	if err := db.QueryRow(`SELECT data FROM session_message WHERE id = ?`, "msg_2ou44EfXGCu7cZCEaovIsRGV3h").Scan(&data); err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		t.Fatal(err)
+	}
+	delete(payload, "tokens")
+	rewritten, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE session_message SET data = ? WHERE id = ?`, string(rewritten), "msg_2ou44EfXGCu7cZCEaovIsRGV3h"); err != nil {
+		t.Fatal(err)
+	}
+	got := measureOpenCode(t, "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe", "", path)
+	assertOpenCode(t, got.Usage.Self, 1559, 45, 49, 22656, 0)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" {
+		t.Fatalf("a response without tokens must not leave the remaining subtotal complete: %+v", got.Usage)
+	}
+}
+
 func TestOpenCodeMissingStartKeepsUsage(t *testing.T) {
 	root := moduleRoot(t)
 	path := filepath.Join(t.TempDir(), "missing-start.db")

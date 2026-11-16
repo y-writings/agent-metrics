@@ -71,9 +71,8 @@ type openCodeExecution struct {
 	id, session, parentExec, status string
 	start, end                      int64
 	startID, endID                  string
-	usage                           []openCodeMessage
-	confirmed                       bool
-	fresh                           bool
+	usage, assistants               []openCodeMessage
+	confirmed, fresh, missingUsage  bool
 }
 
 func readOpenCodeDB(path string) (map[string]openCodeSession, []openCodeMessage, error) {
@@ -212,6 +211,11 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 					CacheRead: usage.tokens.cacheRead, CacheWrite: usage.tokens.cacheWrite,
 				})
 			}
+			if execution.missingUsage {
+				result.Events = append(result.Events, Event{
+					ID: execution.id + ":missing-usage", Session: sessionID, SourceSession: sessionID, Execution: execution.id, Kind: "usage",
+				})
+			}
 			if execution.confirmed {
 				result.Events = append(result.Events, Event{
 					ID: execution.endID, Session: sessionID, SourceSession: sessionID, Execution: execution.id,
@@ -260,14 +264,13 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) ([]
 				fresh: users == 1 && message.created >= session.created && message.created-session.created <= openCodeFreshSessionWindow,
 			}
 		case "assistant":
-			if message.tokens == nil {
-				continue
-			}
 			if current == nil {
-				unscoped = append(unscoped, message)
+				if message.tokens != nil {
+					unscoped = append(unscoped, message)
+				}
 				continue
 			}
-			current.usage = append(current.usage, message)
+			current.assistants = append(current.assistants, message)
 		case "idle":
 			if current == nil || current.confirmed {
 				continue
@@ -285,18 +288,44 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) ([]
 		executions = append(executions, *current)
 	}
 	for index := range executions {
-		if len(executions[index].usage) > 0 || !executions[index].fresh {
-			continue
+		usage, missing := openCodeUsageByResponse(executions[index].assistants)
+		if len(usage) == 0 && executions[index].fresh && openCodeCountersPresent(session.cumulative) {
+			usage = []openCodeMessage{{
+				id: executions[index].id + ":baseline", session: executions[index].session,
+				model: session.model, provider: session.provider, tokens: &session.cumulative,
+			}}
+			missing = false
 		}
-		if !openCodeCountersPresent(session.cumulative) {
-			continue
-		}
-		executions[index].usage = []openCodeMessage{{
-			id: executions[index].id + ":baseline", session: executions[index].session,
-			model: session.model, provider: session.provider, tokens: &session.cumulative,
-		}}
+		executions[index].usage = usage
+		executions[index].missingUsage = missing
 	}
 	return executions, unscoped
+}
+
+func openCodeUsageByResponse(messages []openCodeMessage) ([]openCodeMessage, bool) {
+	seen := map[string]bool{}
+	hasTokens := map[string]bool{}
+	var order []string
+	var usage []openCodeMessage
+	for _, message := range messages {
+		id := openCodeUsageID(message)
+		if !seen[id] {
+			seen[id] = true
+			order = append(order, id)
+		}
+		if message.tokens != nil {
+			hasTokens[id] = true
+			usage = append(usage, message)
+		}
+	}
+	missing := false
+	for _, id := range order {
+		if !hasTokens[id] {
+			missing = true
+			break
+		}
+	}
+	return usage, missing
 }
 
 func openCodeChildLinked(executions []openCodeExecution) bool {
