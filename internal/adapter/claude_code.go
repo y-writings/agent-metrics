@@ -110,8 +110,8 @@ type claudeNote struct {
 }
 
 type claudeRef struct {
-	child, parentExec, parentAgent string
-	time                           time.Time
+	child, parentExec, parentAgent, toolID string
+	time                                   time.Time
 }
 
 func parseClaudeFile(root, path string) claudeTranscript {
@@ -197,6 +197,9 @@ func parseClaudeLine(line int, raw string) (claudeRecord, bool) {
 		record.usage = claudeUsage(message["usage"])
 		if name, id, to := firstToolUse(message["content"]); name != "" {
 			record.toolName, record.toolID, record.sendTo = name, id, to
+		}
+		if record.toolID == "" {
+			record.toolID = toolResultID(message["content"])
 		}
 	}
 	if result, ok := decoded["toolUseResult"].(map[string]any); ok {
@@ -433,10 +436,11 @@ func claudeReferences(transcripts []claudeTranscript) map[string][]claudeRef {
 			if child == "" {
 				continue
 			}
-			refs[child] = append(refs[child], claudeRef{child: child, parentExec: execID(index), parentAgent: transcript.agentID, time: record.time})
+			refs[child] = append(refs[child], claudeRef{child: child, parentExec: execID(index), parentAgent: transcript.agentID, toolID: record.toolID, time: record.time})
 		}
 	}
 	for child := range refs {
+		refs[child] = dedupeClaudeRefs(refs[child])
 		sort.Slice(refs[child], func(i, j int) bool {
 			if refs[child][i].time.Equal(refs[child][j].time) {
 				return refs[child][i].parentExec < refs[child][j].parentExec
@@ -526,7 +530,7 @@ func buildClaudeResult(target string, included map[string]bool, agents map[strin
 		}
 	}
 	for child, matched := range refs {
-		if len(agents[child]) > 0 {
+		if claudeChildLinked(agents[child]) {
 			continue
 		}
 		for _, ref := range matched {
@@ -541,6 +545,52 @@ func buildClaudeResult(target string, included map[string]bool, agents map[strin
 		}
 	}
 	return result
+}
+
+func claudeChildLinked(executions []claudeExecution) bool {
+	if len(executions) == 0 {
+		return false
+	}
+	for _, execution := range executions {
+		if execution.parentExec == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func dedupeClaudeRefs(refs []claudeRef) []claudeRef {
+	seen := map[string]bool{}
+	var unique []claudeRef
+	for _, ref := range refs {
+		key := ref.child + "|" + ref.parentExec + "|" + ref.time.UTC().Format(time.RFC3339Nano) + "|" + ref.toolID
+		if ref.toolID != "" {
+			key = ref.child + "|" + ref.toolID
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		unique = append(unique, ref)
+	}
+	return unique
+}
+
+func toolResultID(content any) string {
+	items, ok := content.([]any)
+	if !ok {
+		return ""
+	}
+	for _, item := range items {
+		block, ok := item.(map[string]any)
+		if !ok || strField(block, "type") != "tool_result" {
+			continue
+		}
+		if id := strField(block, "tool_use_id"); id != "" {
+			return id
+		}
+	}
+	return ""
 }
 
 func claudeIncludedAgents(target string, transcripts []claudeTranscript) map[string]bool {

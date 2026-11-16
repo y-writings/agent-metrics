@@ -72,6 +72,66 @@ func TestClaudeMultipleTurnsAndReuse(t *testing.T) {
 	}
 }
 
+func TestClaudeDuplicateLaunchReferenceStillLinksChild(t *testing.T) {
+	root := moduleRoot(t)
+	projects := filepath.Join(t.TempDir(), "projects")
+	if output, err := exec.Command("cp", "-a", filepath.Join(root, "testdata/claude-code/native/records/default/projects"), projects).CombinedOutput(); err != nil {
+		t.Fatalf("copy projects: %v\n%s", err, output)
+	}
+	transcript := filepath.Join(projects, "-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl")
+	raw, err := os.ReadFile(transcript)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var repeated []byte
+	var distinct []byte
+	for _, line := range splitLines(raw) {
+		repeated = append(repeated, line...)
+		repeated = append(repeated, '\n')
+		distinct = append(distinct, line...)
+		distinct = append(distinct, '\n')
+		if !contains(string(line), "ac4c73eec0456b131") || !contains(string(line), "async_launched") {
+			continue
+		}
+		repeated = append(repeated, line...)
+		repeated = append(repeated, '\n')
+		var record map[string]any
+		if err := json.Unmarshal(line, &record); err != nil {
+			t.Fatal(err)
+		}
+		message := record["message"].(map[string]any)
+		for _, item := range message["content"].([]any) {
+			block := item.(map[string]any)
+			if block["type"] == "tool_result" {
+				block["tool_use_id"] = "toolu_distinct_unmatched_reference"
+			}
+		}
+		rewritten, err := json.Marshal(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		distinct = append(distinct, rewritten...)
+		distinct = append(distinct, '\n')
+	}
+	if err := os.WriteFile(transcript, repeated, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	duplicated := measureClaude(t, "ada3d4768bc8b8ec8", "b3d9191c-6c78-4c2d-a207-cdb53f2ea0a8", projects)
+	assertTotal(t, duplicated.Usage.Subtree, 85659)
+	if duplicated.Completeness != "complete" || hasCode(duplicated.Diagnostics, "missing_descendant") {
+		t.Fatalf("a repeated launch result must still link the grandchild: %+v", duplicated)
+	}
+	if err := os.WriteFile(transcript, distinct, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	unmatched := measureClaude(t, "ada3d4768bc8b8ec8", "b3d9191c-6c78-4c2d-a207-cdb53f2ea0a8", projects)
+	assertTotal(t, unmatched.Usage.Self, 60121)
+	assertTotal(t, unmatched.Usage.Subtree, 60121)
+	if unmatched.Completeness != "partial" || unmatched.Usage.SubtreeCompleteness != "partial" || !hasCode(unmatched.Diagnostics, "missing_descendant") {
+		t.Fatalf("an unmatched launch result must stay unresolved: %+v", unmatched)
+	}
+}
+
 func TestClaudeHandbackAndInterrupt(t *testing.T) {
 	root := moduleRoot(t)
 	running := measureClaude(t, "a532a52d8e39263cd", "dfc3baeb-7b9f-4e35-89f3-a703ffb83524", filepath.Join(root, "testdata/claude-code/native/records/running-grandchild/projects"))
