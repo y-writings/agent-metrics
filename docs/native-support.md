@@ -63,6 +63,7 @@ live の標準保存先での接続確認は未実施であり、fixture 再生�
   `status=completed`）が対応するときだけ確定する。途中の `end_turn` や
   handback だけでは終わらせない。
 * 子の `.meta.json` が無くても、親の launch 結果が子 transcript を指すときはその子を含める。参照だけで実行記録が無いときは `missing_descendant` のままにする。
+* 再構成できた後続の依頼より前に残った assistant usage は、実行 ID を付けずに `unattributed_usage` へ出す。後続の self には足さない。
 * usage は assistant `message.id` ごとに 1 回。`message.id` が無い行は
   その記録の `uuid` で残し、`missing_message_id` で重複を確定できないことを
   診断する。完全な小計にはしない。`total` は

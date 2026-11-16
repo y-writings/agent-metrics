@@ -287,17 +287,7 @@ func buildClaudeAgents(transcripts []claudeTranscript) (map[string][]claudeExecu
 }
 
 func claudeSegments(transcript claudeTranscript) []claudeExecution {
-	starts := []int{}
-	seenStart := false
-	for index, record := range transcript.records {
-		if record.kind != "user" {
-			continue
-		}
-		if record.origin == "coordinator" || (!seenStart && !record.isMeta && !record.toolResult && record.origin == "" && !record.interrupt) {
-			starts = append(starts, index)
-			seenStart = true
-		}
-	}
+	starts := segmentStarts(transcript)
 	var executions []claudeExecution
 	for nth, start := range starts {
 		end := len(transcript.records)
@@ -547,19 +537,17 @@ func buildClaudeResult(target string, included map[string]bool, agents map[strin
 				})
 			}
 		}
-		if len(agents[agent]) == 0 {
-			for _, transcript := range transcripts {
-				if transcript.agentID != agent {
-					continue
-				}
-				for _, usage := range dedupeClaudeUsage(usageRecords(transcript.records)) {
-					result.Events = append(result.Events, Event{
-						ID: sourceLine(transcript.rel, usage.line), UsageID: usage.messageID, Session: agent, SourceSession: transcript.sessionID,
-						Kind: "usage", Model: usage.model,
-						Input: usage.usage.input, CacheRead: usage.usage.cacheRead, CacheWrite: usage.usage.cacheWrite,
-						Output: usage.usage.output, Reasoning: usage.usage.reasoning, Total: usage.usage.total,
-					})
-				}
+		for _, transcript := range transcripts {
+			if transcript.agentID != agent {
+				continue
+			}
+			for _, usage := range dedupeClaudeUsage(claudeLeadingUsage(transcript)) {
+				result.Events = append(result.Events, Event{
+					ID: sourceLine(transcript.rel, usage.line), UsageID: claudeUsageID(usage), Session: agent, SourceSession: transcript.sessionID,
+					Kind: "usage", Model: usage.model,
+					Input: usage.usage.input, CacheRead: usage.usage.cacheRead, CacheWrite: usage.usage.cacheWrite,
+					Output: usage.usage.output, Reasoning: usage.usage.reasoning, Total: usage.usage.total,
+				})
 			}
 		}
 	}
@@ -726,6 +714,14 @@ func sameInt64(a, b *int64) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+func claudeLeadingUsage(transcript claudeTranscript) []claudeRecord {
+	records := transcript.records
+	if starts := segmentStarts(transcript); len(starts) > 0 {
+		records = records[:starts[0]]
+	}
+	return usageRecords(records)
 }
 
 func usageRecords(records []claudeRecord) []claudeRecord {

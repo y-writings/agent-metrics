@@ -153,6 +153,46 @@ func TestClaudeMissingMessageIDKeepsUsagePartial(t *testing.T) {
 	}
 }
 
+func TestClaudeUsageBeforeLaterInvocationStaysUnattributed(t *testing.T) {
+	root := moduleRoot(t)
+	projects := filepath.Join(t.TempDir(), "projects")
+	if output, err := exec.Command("cp", "-a", filepath.Join(root, "testdata/claude-code/native/records/default/projects"), projects).CombinedOutput(); err != nil {
+		t.Fatalf("copy projects: %v\n%s", err, output)
+	}
+	source := filepath.Join(projects, "-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := splitLines(raw)
+	if len(lines) < 2 {
+		t.Fatal("agent transcript is too short")
+	}
+	var out []byte
+	for _, line := range lines[1:] {
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if err := os.WriteFile(source, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureClaude(t, "ada3d4768bc8b8ec8", "b3d9191c-6c78-4c2d-a207-cdb53f2ea0a8", projects)
+	assertTotal(t, got.Usage.Self, 60121)
+	assertTotal(t, got.Usage.Subtree, 85659)
+	var unattributed int64
+	for _, usage := range got.UnattributedUsage {
+		if usage.Tokens.Total != nil {
+			unattributed += *usage.Tokens.Total
+		}
+	}
+	if len(got.UnattributedUsage) != 2 || unattributed != 25414 || got.Completeness == "complete" || !hasCode(got.Diagnostics, "unscoped_usage") {
+		t.Fatalf("usage before the remaining invocation must stay unattributed: self %+v unattributed %+v diagnostics %+v", got.Usage, got.UnattributedUsage, got.Diagnostics)
+	}
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 14826 {
+		t.Fatalf("elapsed: %+v", got.Timing)
+	}
+}
+
 func TestClaudeMissingMetaKeepsLaunchLinkedChild(t *testing.T) {
 	root := moduleRoot(t)
 	projects := filepath.Join(t.TempDir(), "projects")
