@@ -57,10 +57,27 @@ diagnostic; the collector does not guess which child was intended.
 
 > **Current validation scope:** the adapters support the documented metadata
 > aliases in JSON/JSONL records. The default roots make native record discovery
-> possible, but the current fixtures are synthetic rather than captures from
-> released Claude Code, Codex, or OpenCode V2 builds. Product-version-specific
-> native layouts that do not expose these fields are reported as unsupported;
-> they are not treated as complete results.
+> possible. Existing adapter tests use synthetic inputs; separately,
+> [Codex 0.165.0 native captures](testdata/codex/native/README.md) preserve real
+> parent/child records, independent expected values, and collection procedures,
+> as do [Claude Code 2.1.312 native captures](testdata/claude-code/native/README.md)
+> and [OpenCode V2 2.2.1 native captures](testdata/opencode-v2/native/README.md).
+> Those captures are preparation for native adapter work, not evidence that the
+> current CLI supports them. Product-specific native layouts without the supported fields are
+> reported as unsupported, not as complete results.
+
+Native captures establish product-specific record shapes, returned-ID links,
+execution boundaries, counter meanings, and save locations for the observed
+versions and launch paths. Missing fields, corrupt records, duplicates, reversed
+times, and lookup failures can be tested with small copies derived from those
+captures. Detailed aggregation rules belong in common unit tests. Initial fixture
+preparation does not require live captures of every fork, reset, model switch, or
+nonpersistent path, or a fully reproducible capture-agent environment. Unobserved
+paths remain outside validated compatibility; unknown scope or counter meaning
+must be diagnosed, with independently known values retained and no claim of a
+complete result. The maintained bundle contains sanitized records, provenance,
+independent expectations, derived-case recipes, and verification. One-off capture
+transformation scripts are not required to use or verify the bundle.
 
 ## Schema 2.0
 

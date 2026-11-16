@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "classification": "derived",
+  "materialization": "python3 prepare.py NEW_DIRECTORY",
+  "variants": [
+    {
+      "name": "missing-descendant",
+      "base": "default",
+      "operation": "remove-file",
+      "execution": "G.B",
+      "target": "T.B",
+      "expected": {
+        "self_total": 82419,
+        "elapsed_ms": 43699,
+        "known_subtree_total": 82419,
+        "final_subtree_total": null,
+        "reason": "Referenced descendant record missing; do not mistake it for no children."
+      }
+    },
+    {
+      "name": "missing-start",
+      "base": "r1",
+      "operation": "remove-start",
+      "execution": "T.A",
+      "expected": {
+        "total": 40080,
+        "elapsed_ms": null,
+        "reason": "Missing explicit start; retain usage and terminal state."
+      }
+    },
+    {
+      "name": "missing-end",
+      "base": "r1",
+      "operation": "remove-end",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 40080,
+        "elapsed_ms": null,
+        "final_total": null,
+        "reason": "Missing explicit terminal; do not use final usage timestamp."
+      }
+    },
+    {
+      "name": "missing-model",
+      "base": "r1",
+      "operation": "remove-model",
+      "execution": "T.A",
+      "expected": {
+        "known_unattributed_total": 40080,
+        "elapsed_ms": 8994,
+        "model": null,
+        "reason": "Remove direct target model metadata and duplicate spawn-model evidence; do not inherit parent model."
+      }
+    },
+    {
+      "name": "missing-usage",
+      "base": "r1",
+      "operation": "remove-usage",
+      "execution": "T.A",
+      "expected": {
+        "total": null,
+        "elapsed_ms": 8994,
+        "reason": "Remove per-response and duplicate cumulative/token_count representations for one usage family; missing is not zero."
+      }
+    },
+    {
+      "name": "missing-baseline",
+      "base": "default",
+      "operation": "remove-prior-usage",
+      "execution": "T.B",
+      "expected": {
+        "total": 82419,
+        "elapsed_ms": 43699,
+        "reason": "Prior explicit usage snapshots absent; independent B request deltas still establish exact usage. Never charge 122499 to B."
+      }
+    },
+    {
+      "name": "duplicate-response",
+      "base": "r1",
+      "operation": "duplicate-response",
+      "execution": "T.A",
+      "expected": {
+        "total": 40080,
+        "elapsed_ms": 8994,
+        "reason": "Repeated response_id must count once; token_count is already a duplicate representation."
+      }
+    },
+    {
+      "name": "truncated-tail",
+      "base": "r1",
+      "operation": "truncate-tail",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 40080,
+        "elapsed_ms": null,
+        "reason": "Malformed JSONL terminal must diagnose truncation while retaining complete earlier usage records."
+      }
+    },
+    {
+      "name": "unsupported-record",
+      "base": "r1",
+      "operation": "append-unknown",
+      "execution": "T.A",
+      "expected": {
+        "known_total": 40080,
+        "reason": "Unknown native record type must be diagnosed, not reported as an empty complete result."
+      }
+    },
+    {
+      "name": "reversed-time",
+      "base": "r1",
+      "operation": "reverse-end",
+      "execution": "T.A",
+      "expected": {
+        "total": 40080,
+        "elapsed_ms": null,
+        "reason": "Terminal event timestamp precedes explicit start; do not report a negative or substitute duration."
+      }
+    },
+    {
+      "name": "body-sentinel",
+      "base": "r1",
+      "operation": "append-sentinel",
+      "execution": "T.A",
+      "expected": {
+        "total": 40080,
+        "elapsed_ms": 8994,
+        "forbidden_output": "FIXTURE_BODY_MUST_NOT_LEAK",
+        "reason": "Synthetic harmless body must never reach report, diagnostics or measurement metadata; reader must not change fixture hashes."
+      }
+    }
+  ],
+  "lookup_cases": [
+    {
+      "id": "L3-explicit",
+      "explicit": "lookup/explicit",
+      "configured": "lookup/configured",
+      "default": "lookup/default",
+      "expect": "Select the explicit root: T has one invocation there. The configured root contains unrelated O.child; the default root contains three T invocations and would be ambiguous without an execution selector.",
+      "requested_agent_reference": "/root/capture_target",
+      "execution": null
+    },
+    {
+      "id": "L3-invalid-explicit",
+      "explicit": "lookup/nonexistent",
+      "configured": "lookup/default",
+      "requested": "T.A",
+      "expect": "Invalid explicit root; do not fall through to valid configured target."
+    },
+    {
+      "id": "L4-invalid-config",
+      "configured": "lookup/nonexistent",
+      "default": "lookup/default",
+      "requested": "T.A",
+      "expect": "Invalid CODEX_HOME; do not fall through to default records."
+    },
+    {
+      "id": "L4-empty",
+      "explicit": "lookup/empty",
+      "requested": "T.A",
+      "expect": "No records, not a zero complete run."
+    },
+    {
+      "id": "L4-wrong-id",
+      "explicit": "lookup/no-target",
+      "requested": "T.A",
+      "expect": "Requested agent missing. O.child is a later unrelated successful execution; never select it."
+    }
+  ]
+}

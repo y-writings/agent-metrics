@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"b57d0ce2-d52a-7337-ba0e-52a8443c171c"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":""}}
+{"type":"item.started","item":{"id":"item_1","type":"collab_tool_call","tool":"wait","sender_thread_id":"b57d0ce2-d52a-7337-ba0e-52a8443c171c","receiver_thread_ids":[],"status":"in_progress","prompt":null,"agents_states":{}}}
+{"type":"item.completed","item":{"id":"item_1","type":"collab_tool_call","tool":"wait","sender_thread_id":"b57d0ce2-d52a-7337-ba0e-52a8443c171c","receiver_thread_ids":[],"status":"completed","prompt":null,"agents_states":{}}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":""}}
+{"type":"turn.completed","usage":{"input_tokens":55067,"cached_input_tokens":48512,"cache_write_input_tokens":0,"output_tokens":156,"reasoning_output_tokens":0}}

@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "classification": "derived",
+  "materialization": "python3 prepare.py NEW_DIRECTORY",
+  "variants": [
+    {
+      "name": "missing-descendant",
+      "base": "override",
+      "operation": "remove-session",
+      "execution": "L2.G",
+      "target": "L2.T",
+      "expected": {
+        "self": {"input_tokens": 1544, "output_tokens": 131, "reasoning_tokens": 204, "cache_read_tokens": 2560, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 17175,
+        "known_subtree": {"input_tokens": 1544, "output_tokens": 131, "reasoning_tokens": 204, "cache_read_tokens": 2560, "cache_write_tokens": 0, "total_tokens": null},
+        "final_subtree": null,
+        "reason": "The retained T-to-G subagent reference resolves to no session row. Preserve T self metrics and report the subtree as partial rather than treating T as childless."
+      }
+    },
+    {
+      "name": "missing-start",
+      "base": "r1",
+      "operation": "remove-start",
+      "execution": "T.A@r1",
+      "expected": {
+        "known_tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": null,
+        "reason": "The invocation user record is absent. Retain observed usage and terminal evidence, but do not invent a start time or duration."
+      }
+    },
+    {
+      "name": "missing-end",
+      "base": "r1",
+      "operation": "remove-end",
+      "execution": "T.A@r1",
+      "expected": {
+        "known_tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": null,
+        "status": null,
+        "reason": "The invocation idle record is absent while the session summary remains. A session-lifetime summary is not a substitute for the selected invocation terminal."
+      }
+    },
+    {
+      "name": "missing-model",
+      "base": "r1",
+      "operation": "remove-model",
+      "execution": "T.A@r1",
+      "expected": {
+        "known_unattributed_tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 10099,
+        "model": null,
+        "reason": "Remove both session and assistant model evidence. Do not inherit a parent model."
+      }
+    },
+    {
+      "name": "missing-usage",
+      "base": "r1",
+      "operation": "remove-usage",
+      "execution": "T.A@r1",
+      "expected": {
+        "tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 10099,
+        "usage_source": "The new session has one invocation, so its session_v2 cumulative counters have an observed zero baseline.",
+        "reason": "Per-message counters are absent, but the unchanged new-session cumulative counters still establish exact native component values. Native total remains unknown."
+      }
+    },
+    {
+      "name": "duplicate-response",
+      "base": "r1",
+      "operation": "duplicate-response",
+      "execution": "T.A@r1",
+      "expected": {
+        "tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 10099,
+        "reason": "Two assistant rows carry the same native responseId and usage. Count that response once."
+      }
+    },
+    {
+      "name": "removed-prior-invocation",
+      "base": "default",
+      "operation": "remove-prior-invocation",
+      "execution": "T.B",
+      "expected": {
+        "tokens": {"input_tokens": 303, "output_tokens": 49, "reasoning_tokens": 87, "cache_read_tokens": 24448, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 7429,
+        "reason": "The earlier invocation rows are absent while session cumulative counters still include them. Use T.B per-message increments and never charge the final session cumulative value to T.B."
+      }
+    },
+    {
+      "name": "reversed-time",
+      "base": "r1",
+      "operation": "reverse-end",
+      "execution": "T.A@r1",
+      "expected": {
+        "tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": null,
+        "reason": "The idle creation clock precedes the user creation clock. Do not report a negative or substitute duration."
+      }
+    },
+    {
+      "name": "unsupported-record",
+      "base": "r1",
+      "operation": "append-unknown",
+      "execution": "T.A@r1",
+      "expected": {
+        "known_tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "reason": "An unknown session_message type must be diagnosed rather than silently treated as an empty complete result."
+      }
+    },
+    {
+      "name": "body-sentinel",
+      "base": "r1",
+      "operation": "body-sentinel",
+      "execution": "T.A@r1",
+      "expected": {
+        "tokens": {"input_tokens": 10200, "output_tokens": 66, "reasoning_tokens": 211, "cache_read_tokens": 24704, "cache_write_tokens": 0, "total_tokens": null},
+        "elapsed_ms": 10099,
+        "forbidden_output": "FIXTURE_BODY_MUST_NOT_LEAK",
+        "reason": "The synthetic harmless user text must never reach reports, diagnostics, or measurement metadata."
+      }
+    }
+  ],
+  "lookup_cases": [
+    {
+      "id": "L3-explicit",
+      "explicit": "lookup/explicit.db",
+      "configured": "lookup/configured.db",
+      "default": "lookup/default.db",
+      "requested_agent": "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe",
+      "execution": null,
+      "expect": "Select the explicit database, which has one invocation. The configured database has unrelated sessions and the default database has two invocations of the requested session."
+    },
+    {
+      "id": "L3-invalid-explicit",
+      "explicit": "lookup/invalid.db",
+      "configured": "lookup/default.db",
+      "requested": "T.A@r1",
+      "expect": "The explicit file exists but is not SQLite. Diagnose it and do not fall through to the valid configured database."
+    },
+    {
+      "id": "L4-missing-config",
+      "configured": "lookup/missing.db",
+      "default": "lookup/default.db",
+      "requested": "T.A@r1",
+      "expect": "The configured OPENCODE_DB file is missing. Diagnose it and do not fall through to the default database."
+    },
+    {
+      "id": "L4-empty",
+      "explicit": "lookup/empty.db",
+      "requested": "T.A@r1",
+      "expect": "A valid database with no records means no matching execution, not a zero complete run."
+    },
+    {
+      "id": "L4-wrong-target",
+      "explicit": "lookup/no-target.db",
+      "requested": "T.A@r1",
+      "expect": "The requested session is absent. Unrelated successful sessions must never be selected."
+    }
+  ]
+}

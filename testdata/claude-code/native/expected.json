@@ -1,0 +1,1595 @@
+{
+  "version": 1,
+  "product": "claude-code",
+  "classification": "real-derived",
+  "native_version": "2.1.312",
+  "execution_definition": "One invocation of an agent transcript: from its first user record (spawn prompt) or a user record with origin.kind=coordinator (SendMessage resume) up to the record before the next coordinator record.",
+  "timing_definition": "start = invocation start record timestamp; end = last loop-terminal record of the invocation (assistant stop_reason=end_turn counted once per message.id, user tool_result with toolEndsTurn=true, or the '[Request interrupted by user]' marker), valid only when the caller received a stop notification (queue-operation enqueue / delivered task-notification with status completed|killed, or a foreground tool_result status=completed) after it. Notification duration_ms and handback time are separate observations.",
+  "usage_definition": "Sum message.usage once per assistant message.id within the invocation (rows are split per content block and repeat identical usage/requestId). total = input + cache_creation + cache_read + output. thinking_tokens (output_tokens_details) is a subset of output; cache_creation.ephemeral_* is a subset of cache_creation; iterations[] repeats the same request. Notification/tool_result totalTokens is the last message context size, not consumption.",
+  "agents": {
+    "T": "ada3d4768bc8b8ec8",
+    "S": "a532a52d8e39263cd",
+    "G.B": "ac4c73eec0456b131",
+    "G.C": "a6db55dd0c04f1cce",
+    "GS": "a73b6ab57b7333f2b",
+    "O.child": "a902a36167c8ba175"
+  },
+  "files": {
+    "r1:P": {
+      "file": "r1/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+      "session_id": "a8d0d672-209c-4bab-86d6-48fec0f52850",
+      "role": "orchestrator main thread (isSidechain=false)"
+    },
+    "default:P": {
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+      "session_id": "a8d0d672-209c-4bab-86d6-48fec0f52850",
+      "role": "orchestrator main thread (isSidechain=false)"
+    },
+    "running-grandchild:P": {
+      "file": "running-grandchild/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+      "session_id": "a8d0d672-209c-4bab-86d6-48fec0f52850",
+      "role": "orchestrator main thread (isSidechain=false)"
+    },
+    "running:P": {
+      "file": "running/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+      "session_id": "a8d0d672-209c-4bab-86d6-48fec0f52850",
+      "role": "orchestrator main thread (isSidechain=false)"
+    },
+    "override:O": {
+      "file": "override/projects/-fixture-override-ws/2d10bb6b-483a-4d2e-9639-792784555968.jsonl",
+      "session_id": "2d10bb6b-483a-4d2e-9639-792784555968",
+      "role": "claude -p parent under CLAUDE_CONFIG_DIR"
+    }
+  },
+  "links": {
+    "spawn": {
+      "T": {
+        "call_line": 46,
+        "tool_use_id": "toolu_01xl3PnJje2jCGg0T3sqG08Y",
+        "result_line": 47,
+        "returned_agent_id": "ada3d4768bc8b8ec8",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-opus-5-5"
+      },
+      "S": {
+        "call_line": 82,
+        "tool_use_id": "toolu_01YDvzBOJBTZIzERHS46Gtv2",
+        "result_line": 84,
+        "returned_agent_id": "a532a52d8e39263cd",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-opus-5-5"
+      },
+      "G.B": {
+        "call_line": 13,
+        "tool_use_id": "toolu_01XobNL1vtWCJnCHdkLK4peG",
+        "result_line": 14,
+        "returned_agent_id": "ac4c73eec0456b131",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-haiku-5-5"
+      },
+      "G.C": {
+        "call_line": 27,
+        "tool_use_id": "toolu_011EuLMXNR4ug58qFqSWr6oB",
+        "result_line": 28,
+        "returned_agent_id": "a6db55dd0c04f1cce",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-haiku-5-5"
+      },
+      "GS": {
+        "call_line": 13,
+        "tool_use_id": "toolu_01bE41z0sQdyaNzrZ9HAtOg7",
+        "result_line": 14,
+        "returned_agent_id": "a73b6ab57b7333f2b",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-haiku-5-5"
+      },
+      "O.child": {
+        "call_line": 6,
+        "tool_use_id": "toolu_01o9SJ6eyt37o0Oe262euaRf",
+        "result_line": 7,
+        "returned_agent_id": "a902a36167c8ba175",
+        "target": null,
+        "result_status": "completed",
+        "resolved_model": "claude-opus-5-5"
+      }
+    },
+    "resume": [
+      {
+        "call_line": 81,
+        "tool_use_id": "toolu_01lDHXYzCKQAni2IWQrnBTYQ",
+        "result_line": 83,
+        "returned_agent_id": "ada3d4768bc8b8ec8",
+        "target": "ada3d4768bc8b8ec8",
+        "result_status": null,
+        "resolved_model": null
+      },
+      {
+        "call_line": 110,
+        "tool_use_id": "toolu_01naxJc1AHKARRSZWH70b0yf",
+        "result_line": 111,
+        "returned_agent_id": "ada3d4768bc8b8ec8",
+        "target": "ada3d4768bc8b8ec8",
+        "result_status": null,
+        "resolved_model": null
+      },
+      {
+        "call_line": 141,
+        "tool_use_id": "toolu_01PhISmFAN896fAvkNRTxS24",
+        "result_line": 142,
+        "returned_agent_id": "a532a52d8e39263cd",
+        "target": "a532a52d8e39263cd",
+        "result_status": null,
+        "resolved_model": null
+      },
+      {
+        "call_line": 170,
+        "tool_use_id": "toolu_01hUL0Xams16886jDkPXxLED",
+        "result_line": 171,
+        "returned_agent_id": "a532a52d8e39263cd",
+        "target": "a532a52d8e39263cd",
+        "result_status": null,
+        "resolved_model": null
+      }
+    ],
+    "stop": [
+      {
+        "call_line": 178,
+        "tool_use_id": "toolu_015g14V5zCCaHCn5IMpYVL4b",
+        "result_line": 179,
+        "returned_agent_id": "",
+        "target": "a532a52d8e39263cd",
+        "result_status": null,
+        "resolved_model": null
+      }
+    ]
+  },
+  "executions": {
+    "T.A@r1": {
+      "snapshot": "r1",
+      "file": "r1/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+      "agent_id": "ada3d4768bc8b8ec8",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        9
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:49:39.083Z",
+      "end_line": 9,
+      "ended_at": "2026-01-01T11:49:44.520Z",
+      "elapsed_ms": 5437,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        9
+      ],
+      "handback_elapsed_ms": [
+        5437
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "r1/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 50,
+        "timestamp": "2026-01-01T11:49:44.542Z",
+        "status": "completed",
+        "native_duration_ms": 5471,
+        "subagent_tokens": 13777,
+        "tool_use_id": "toolu_01xl3PnJje2jCGg0T3sqG08Y",
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011ChCcZwPD7f8yhCIKPXlfa",
+        "msg_011CHQ1dNcHW9arYJQI650J8"
+      ],
+      "usage_lines": [
+        5,
+        8
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 13718,
+          "cache_read_input_tokens": 11533,
+          "output_tokens": 159,
+          "thinking_tokens": 0,
+          "total_tokens": 25414,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 13718,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 13718,
+        "cache_read_input_tokens": 11533,
+        "output_tokens": 159,
+        "thinking_tokens": 0,
+        "total_tokens": 25414
+      }
+    },
+    "T.A": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+      "agent_id": "ada3d4768bc8b8ec8",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        9
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:49:39.083Z",
+      "end_line": 9,
+      "ended_at": "2026-01-01T11:49:44.520Z",
+      "elapsed_ms": 5437,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        9
+      ],
+      "handback_elapsed_ms": [
+        5437
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 50,
+        "timestamp": "2026-01-01T11:49:44.542Z",
+        "status": "completed",
+        "native_duration_ms": 5471,
+        "subagent_tokens": 13777,
+        "tool_use_id": "toolu_01xl3PnJje2jCGg0T3sqG08Y",
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011ChCcZwPD7f8yhCIKPXlfa",
+        "msg_011CHQ1dNcHW9arYJQI650J8"
+      ],
+      "usage_lines": [
+        5,
+        8
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 13718,
+          "cache_read_input_tokens": 11533,
+          "output_tokens": 159,
+          "thinking_tokens": 0,
+          "total_tokens": 25414,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 13718,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 13718,
+        "cache_read_input_tokens": 11533,
+        "output_tokens": 159,
+        "thinking_tokens": 0,
+        "total_tokens": 25414
+      }
+    },
+    "T.B": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+      "agent_id": "ada3d4768bc8b8ec8",
+      "invocation_index": 1,
+      "segment_lines": [
+        10,
+        24
+      ],
+      "start_line": 10,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:51:00.247Z",
+      "end_line": 24,
+      "ended_at": "2026-01-01T11:51:15.073Z",
+      "elapsed_ms": 14826,
+      "intermediate_turn_end_lines": [
+        16,
+        20
+      ],
+      "handback_lines": [
+        20
+      ],
+      "handback_elapsed_ms": [
+        12561
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 92,
+        "timestamp": "2026-01-01T11:51:15.111Z",
+        "status": "completed",
+        "native_duration_ms": 14855,
+        "subagent_tokens": 16048,
+        "tool_use_id": null,
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": false
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011Cn3Md3EWlBuVENQfFVtl5",
+        "msg_011CO08jjS4wxz51K83m7mMz",
+        "msg_011CQzeAE9P49CS7g62jRoao",
+        "msg_011C8FeBwG1AKr5auMHEdN77"
+      ],
+      "usage_lines": [
+        12,
+        16,
+        19,
+        23
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2053,
+          "cache_read_input_tokens": 57585,
+          "output_tokens": 469,
+          "thinking_tokens": 159,
+          "total_tokens": 60121,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 2053,
+          "messages": 4
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 2053,
+        "cache_read_input_tokens": 57585,
+        "output_tokens": 469,
+        "thinking_tokens": 159,
+        "total_tokens": 60121
+      }
+    },
+    "T.C": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+      "agent_id": "ada3d4768bc8b8ec8",
+      "invocation_index": 2,
+      "segment_lines": [
+        25,
+        40
+      ],
+      "start_line": 25,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:51:58.672Z",
+      "end_line": 40,
+      "ended_at": "2026-01-01T11:52:23.489Z",
+      "elapsed_ms": 24817,
+      "intermediate_turn_end_lines": [
+        31,
+        36
+      ],
+      "handback_lines": [
+        31
+      ],
+      "handback_elapsed_ms": [
+        7841
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 121,
+        "timestamp": "2026-01-01T11:52:23.501Z",
+        "status": "completed",
+        "native_duration_ms": 24817,
+        "subagent_tokens": 18556,
+        "tool_use_id": null,
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": false
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011CmX9SAaikaU7RqttQt7r0",
+        "msg_011CD0KGTI0m94zDqY8MWJ5L",
+        "msg_011CTV8rl2Y4dInGQfNsqBLI",
+        "msg_011C7PJG3wNhBaPClBN8Jz3s"
+      ],
+      "usage_lines": [
+        27,
+        30,
+        35,
+        39
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2489,
+          "cache_read_input_tokens": 66070,
+          "output_tokens": 633,
+          "thinking_tokens": 172,
+          "total_tokens": 69206,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 2489,
+          "messages": 4
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 2489,
+        "cache_read_input_tokens": 66070,
+        "output_tokens": 633,
+        "thinking_tokens": 172,
+        "total_tokens": 69206
+      }
+    },
+    "G.B": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ac4c73eec0456b131.jsonl",
+      "agent_id": "ac4c73eec0456b131",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        10
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:51:04.693Z",
+      "end_line": 10,
+      "ended_at": "2026-01-01T11:51:08.933Z",
+      "elapsed_ms": 4240,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        10
+      ],
+      "handback_elapsed_ms": [
+        4240
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+        "line": 21,
+        "timestamp": "2026-01-01T11:51:12.888Z",
+        "status": "completed",
+        "native_duration_ms": 4259,
+        "subagent_tokens": 13837,
+        "tool_use_id": "toolu_01XobNL1vtWCJnCHdkLK4peG",
+        "kind": "delivered_user_record",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011CFMElqzbJ9jr67Xdi5jZ3",
+        "msg_011C74oLAR3C3GcWTQn2E9Jt"
+      ],
+      "usage_lines": [
+        5,
+        9
+      ],
+      "tokens_by_model": {
+        "claude-haiku-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 13780,
+          "cache_read_input_tokens": 11515,
+          "output_tokens": 239,
+          "thinking_tokens": 73,
+          "total_tokens": 25538,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 13780,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 13780,
+        "cache_read_input_tokens": 11515,
+        "output_tokens": 239,
+        "thinking_tokens": 73,
+        "total_tokens": 25538
+      }
+    },
+    "G.C": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a6db55dd0c04f1cce.jsonl",
+      "agent_id": "a6db55dd0c04f1cce",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        13
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:52:02.776Z",
+      "end_line": 13,
+      "ended_at": "2026-01-01T11:52:15.323Z",
+      "elapsed_ms": 12547,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        13
+      ],
+      "handback_elapsed_ms": [
+        12547
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl",
+        "line": 37,
+        "timestamp": "2026-01-01T11:52:20.061Z",
+        "status": "completed",
+        "native_duration_ms": 12557,
+        "subagent_tokens": 14985,
+        "tool_use_id": "toolu_011EuLMXNR4ug58qFqSWr6oB",
+        "kind": "delivered_user_record",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011COoYzhy3mRqWS2cFN518q",
+        "msg_011C8PqOEPrKkWU4gJkK7C2J",
+        "msg_011CZS8GIa3RKNC4nfRwiH7u"
+      ],
+      "usage_lines": [
+        5,
+        8,
+        12
+      ],
+      "tokens_by_model": {
+        "claude-haiku-5-5": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 8107,
+          "cache_read_input_tokens": 31967,
+          "output_tokens": 1246,
+          "thinking_tokens": 777,
+          "total_tokens": 41326,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 8107,
+          "messages": 3
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 8107,
+        "cache_read_input_tokens": 31967,
+        "output_tokens": 1246,
+        "thinking_tokens": 777,
+        "total_tokens": 41326
+      }
+    },
+    "S.A": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+      "agent_id": "a532a52d8e39263cd",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        9
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:51:00.313Z",
+      "end_line": 9,
+      "ended_at": "2026-01-01T11:51:03.827Z",
+      "elapsed_ms": 3514,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        9
+      ],
+      "handback_elapsed_ms": [
+        3514
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 87,
+        "timestamp": "2026-01-01T11:51:03.842Z",
+        "status": "completed",
+        "native_duration_ms": 3528,
+        "subagent_tokens": 13775,
+        "tool_use_id": "toolu_01YDvzBOJBTZIzERHS46Gtv2",
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011CS8qZe2Qi5eZlvWTN3IUc",
+        "msg_011CfSQk15bXg0Wxna3rYdrs"
+      ],
+      "usage_lines": [
+        5,
+        8
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 7102,
+          "cache_read_input_tokens": 18152,
+          "output_tokens": 158,
+          "thinking_tokens": 0,
+          "total_tokens": 25416,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 7102,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 7102,
+        "cache_read_input_tokens": 18152,
+        "output_tokens": 158,
+        "thinking_tokens": 0,
+        "total_tokens": 25416
+      }
+    },
+    "S.B": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+      "agent_id": "a532a52d8e39263cd",
+      "invocation_index": 1,
+      "segment_lines": [
+        10,
+        25
+      ],
+      "start_line": 10,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:53:37.622Z",
+      "end_line": 25,
+      "ended_at": "2026-01-01T11:54:01.074Z",
+      "elapsed_ms": 23452,
+      "intermediate_turn_end_lines": [
+        17,
+        21
+      ],
+      "handback_lines": [
+        17
+      ],
+      "handback_elapsed_ms": [
+        9040
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 161,
+        "timestamp": "2026-01-01T11:54:01.090Z",
+        "status": "completed",
+        "native_duration_ms": 23465,
+        "subagent_tokens": 16344,
+        "tool_use_id": null,
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": false
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011CqcKVoIifXm5iHjHsrawf",
+        "msg_011CldhLsDCEJOK19UYmXIe3",
+        "msg_011CV3y2E7jkX2372a2KKCzX",
+        "msg_011CXqIodB62FOmJ9mVnZ5TQ"
+      ],
+      "usage_lines": [
+        12,
+        16,
+        20,
+        24
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2350,
+          "cache_read_input_tokens": 58105,
+          "output_tokens": 667,
+          "thinking_tokens": 187,
+          "total_tokens": 61136,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 2350,
+          "messages": 4
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 2350,
+        "cache_read_input_tokens": 58105,
+        "output_tokens": 667,
+        "thinking_tokens": 187,
+        "total_tokens": 61136
+      }
+    },
+    "GS": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a73b6ab57b7333f2b.jsonl",
+      "agent_id": "a73b6ab57b7333f2b",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        31
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:53:43.403Z",
+      "end_line": 31,
+      "ended_at": "2026-01-01T11:53:55.834Z",
+      "elapsed_ms": 12431,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        31
+      ],
+      "handback_elapsed_ms": [
+        12431
+      ],
+      "status": "completed",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+        "line": 22,
+        "timestamp": "2026-01-01T11:53:58.442Z",
+        "status": "completed",
+        "native_duration_ms": 12438,
+        "subagent_tokens": 14944,
+        "tool_use_id": "toolu_01bE41z0sQdyaNzrZ9HAtOg7",
+        "kind": "delivered_user_record",
+        "equals_last_message_context": false
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011Cr4Gx4LoXY1YeWFbFV3GR",
+        "msg_011C02zPtPZIJPsXg2FykrPg",
+        "msg_011C1ugEWIE2sJeJRfRNxYqT",
+        "msg_011CvPRoaLTVPSNn2Bz3PpPQ",
+        "msg_011Cl2zfnO6GBye3UxdmNEQx",
+        "msg_011CzG7ZqUmv1iNBwmSfvNcl",
+        "msg_011CyBE7JzAx0wXBH0u7gixN",
+        "msg_011CNDnarO1ZJfQcRBM7RHZl",
+        "msg_011CTixRBGiXPVdl3VL0wGRv"
+      ],
+      "usage_lines": [
+        5,
+        9,
+        12,
+        15,
+        18,
+        21,
+        24,
+        27,
+        30
+      ],
+      "tokens_by_model": {
+        "claude-haiku-5-5": {
+          "input_tokens": 18,
+          "cache_creation_input_tokens": 8167,
+          "cache_read_input_tokens": 118292,
+          "output_tokens": 1058,
+          "thinking_tokens": 157,
+          "total_tokens": 127535,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 8167,
+          "messages": 9
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 8167,
+        "cache_read_input_tokens": 118292,
+        "output_tokens": 1058,
+        "thinking_tokens": 157,
+        "total_tokens": 127535
+      }
+    },
+    "S.C": {
+      "snapshot": "default",
+      "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+      "agent_id": "a532a52d8e39263cd",
+      "invocation_index": 2,
+      "segment_lines": [
+        26,
+        40
+      ],
+      "start_line": 26,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:54:24.900Z",
+      "end_line": 40,
+      "ended_at": "2026-01-01T11:54:34.613Z",
+      "elapsed_ms": 9713,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [],
+      "handback_elapsed_ms": [],
+      "status": "interrupted",
+      "notification": {
+        "file": "default/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850.jsonl",
+        "line": 176,
+        "timestamp": "2026-01-01T11:54:34.626Z",
+        "status": "killed",
+        "native_duration_ms": null,
+        "subagent_tokens": null,
+        "tool_use_id": "toolu_01hUL0Xams16886jDkPXxLED",
+        "kind": "queue_operation_enqueue",
+        "equals_last_message_context": null
+      },
+      "usage_final": false,
+      "unanswered_request_lines": [
+        39
+      ],
+      "message_ids": [
+        "msg_011Cw8C0PYIDMrPQ7z25ZmPf",
+        "msg_011CNLMEyaFP4JaQkh51NGOo",
+        "msg_011CL03GnIPlUCCZQrT103bS",
+        "msg_011CL4GUrFiJKjRyciEbXTCB"
+      ],
+      "usage_lines": [
+        28,
+        31,
+        34,
+        37
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 778,
+          "cache_read_input_tokens": 65905,
+          "output_tokens": 419,
+          "thinking_tokens": 0,
+          "total_tokens": 67110,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 778,
+          "messages": 4
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 778,
+        "cache_read_input_tokens": 65905,
+        "output_tokens": 419,
+        "thinking_tokens": 0,
+        "total_tokens": 67110
+      }
+    },
+    "S.B@running-grandchild": {
+      "snapshot": "running-grandchild",
+      "file": "running-grandchild/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+      "agent_id": "a532a52d8e39263cd",
+      "invocation_index": 1,
+      "segment_lines": [
+        10,
+        17
+      ],
+      "start_line": 10,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:53:37.622Z",
+      "end_line": null,
+      "ended_at": null,
+      "elapsed_ms": null,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [
+        17
+      ],
+      "handback_elapsed_ms": [
+        9040
+      ],
+      "status": "running",
+      "notification": null,
+      "usage_final": false,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011CqcKVoIifXm5iHjHsrawf",
+        "msg_011CldhLsDCEJOK19UYmXIe3"
+      ],
+      "usage_lines": [
+        12,
+        16
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 1181,
+          "cache_read_input_tokens": 27825,
+          "output_tokens": 448,
+          "thinking_tokens": 102,
+          "total_tokens": 29460,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 1181,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 1181,
+        "cache_read_input_tokens": 27825,
+        "output_tokens": 448,
+        "thinking_tokens": 102,
+        "total_tokens": 29460
+      }
+    },
+    "GS@running-grandchild": {
+      "snapshot": "running-grandchild",
+      "file": "running-grandchild/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a73b6ab57b7333f2b.jsonl",
+      "agent_id": "a73b6ab57b7333f2b",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        23
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:53:43.403Z",
+      "end_line": null,
+      "ended_at": null,
+      "elapsed_ms": null,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [],
+      "handback_elapsed_ms": [],
+      "status": "running",
+      "notification": null,
+      "usage_final": false,
+      "unanswered_request_lines": [
+        23
+      ],
+      "message_ids": [
+        "msg_011Cr4Gx4LoXY1YeWFbFV3GR",
+        "msg_011C02zPtPZIJPsXg2FykrPg",
+        "msg_011C1ugEWIE2sJeJRfRNxYqT",
+        "msg_011CvPRoaLTVPSNn2Bz3PpPQ",
+        "msg_011Cl2zfnO6GBye3UxdmNEQx",
+        "msg_011CzG7ZqUmv1iNBwmSfvNcl"
+      ],
+      "usage_lines": [
+        5,
+        9,
+        12,
+        15,
+        18,
+        21
+      ],
+      "tokens_by_model": {
+        "claude-haiku-5-5": {
+          "input_tokens": 12,
+          "cache_creation_input_tokens": 7800,
+          "cache_read_input_tokens": 74676,
+          "output_tokens": 789,
+          "thinking_tokens": 157,
+          "total_tokens": 83277,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 7800,
+          "messages": 6
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 12,
+        "cache_creation_input_tokens": 7800,
+        "cache_read_input_tokens": 74676,
+        "output_tokens": 789,
+        "thinking_tokens": 157,
+        "total_tokens": 83277
+      }
+    },
+    "S.C@running": {
+      "snapshot": "running",
+      "file": "running/projects/-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-a532a52d8e39263cd.jsonl",
+      "agent_id": "a532a52d8e39263cd",
+      "invocation_index": 2,
+      "segment_lines": [
+        26,
+        33
+      ],
+      "start_line": 26,
+      "start_kind": "coordinator_message",
+      "started_at": "2026-01-01T11:54:24.900Z",
+      "end_line": null,
+      "ended_at": null,
+      "elapsed_ms": null,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [],
+      "handback_elapsed_ms": [],
+      "status": "running",
+      "notification": null,
+      "usage_final": false,
+      "unanswered_request_lines": [
+        33
+      ],
+      "message_ids": [
+        "msg_011Cw8C0PYIDMrPQ7z25ZmPf",
+        "msg_011CNLMEyaFP4JaQkh51NGOo"
+      ],
+      "usage_lines": [
+        28,
+        31
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 541,
+          "cache_read_input_tokens": 32563,
+          "output_tokens": 212,
+          "thinking_tokens": 0,
+          "total_tokens": 33320,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 541,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 541,
+        "cache_read_input_tokens": 32563,
+        "output_tokens": 212,
+        "thinking_tokens": 0,
+        "total_tokens": 33320
+      }
+    },
+    "O.child": {
+      "snapshot": "override",
+      "file": "override/projects/-fixture-override-ws/2d10bb6b-483a-4d2e-9639-792784555968/subagents/agent-a902a36167c8ba175.jsonl",
+      "agent_id": "a902a36167c8ba175",
+      "invocation_index": 0,
+      "segment_lines": [
+        1,
+        7
+      ],
+      "start_line": 1,
+      "start_kind": "spawn_prompt",
+      "started_at": "2026-01-01T11:55:57.151Z",
+      "end_line": 7,
+      "ended_at": "2026-01-01T11:56:01.497Z",
+      "elapsed_ms": 4346,
+      "intermediate_turn_end_lines": [],
+      "handback_lines": [],
+      "handback_elapsed_ms": [],
+      "status": "completed",
+      "notification": {
+        "file": "override/projects/-fixture-override-ws/2d10bb6b-483a-4d2e-9639-792784555968.jsonl",
+        "line": 7,
+        "timestamp": "2026-01-01T11:56:01.560Z",
+        "status": "completed",
+        "native_duration_ms": 4414,
+        "subagent_tokens": 11592,
+        "tool_use_id": null,
+        "kind": "foreground_tool_result",
+        "equals_last_message_context": true
+      },
+      "usage_final": true,
+      "unanswered_request_lines": [],
+      "message_ids": [
+        "msg_011C2fXf1330k70igjtwITwB",
+        "msg_011CbccB3jEdfUy9WyX8yzo6"
+      ],
+      "usage_lines": [
+        4,
+        7
+      ],
+      "tokens_by_model": {
+        "claude-opus-5-5": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 11581,
+          "cache_read_input_tokens": 10914,
+          "output_tokens": 98,
+          "thinking_tokens": 0,
+          "total_tokens": 22597,
+          "cache_creation_1h": 0,
+          "cache_creation_5m": 11581,
+          "messages": 2
+        }
+      },
+      "tokens_total": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 11581,
+        "cache_read_input_tokens": 10914,
+        "output_tokens": 98,
+        "thinking_tokens": 0,
+        "total_tokens": 22597
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "R1",
+      "records": "r1",
+      "target": "T.A@r1",
+      "returned_reference": "ada3d4768bc8b8ec8",
+      "spawn": {
+        "call_line": 46,
+        "tool_use_id": "toolu_01xl3PnJje2jCGg0T3sqG08Y",
+        "result_line": 47,
+        "returned_agent_id": "ada3d4768bc8b8ec8",
+        "target": null,
+        "result_status": "async_launched",
+        "resolved_model": "claude-opus-5-5"
+      },
+      "included": [
+        "T.A@r1"
+      ],
+      "self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 13718,
+            "cache_read_input_tokens": 11533,
+            "output_tokens": 159,
+            "thinking_tokens": 0,
+            "total_tokens": 25414
+          }
+        },
+        "total": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 13718,
+          "cache_read_input_tokens": 11533,
+          "output_tokens": 159,
+          "thinking_tokens": 0,
+          "total_tokens": 25414
+        }
+      },
+      "subtree": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 13718,
+            "cache_read_input_tokens": 11533,
+            "output_tokens": 159,
+            "thinking_tokens": 0,
+            "total_tokens": 25414
+          }
+        },
+        "total": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 13718,
+          "cache_read_input_tokens": 11533,
+          "output_tokens": 159,
+          "thinking_tokens": 0,
+          "total_tokens": 25414
+        }
+      },
+      "elapsed_ms": 5437,
+      "status": "completed",
+      "completeness": "complete",
+      "excluded": [
+        "P main-thread assistant usage"
+      ]
+    },
+    {
+      "id": "R2",
+      "records": "default",
+      "target": "T.B",
+      "included": [
+        "T.B",
+        "G.B"
+      ],
+      "self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2053,
+            "cache_read_input_tokens": 57585,
+            "output_tokens": 469,
+            "thinking_tokens": 159,
+            "total_tokens": 60121
+          }
+        },
+        "total": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2053,
+          "cache_read_input_tokens": 57585,
+          "output_tokens": 469,
+          "thinking_tokens": 159,
+          "total_tokens": 60121
+        }
+      },
+      "subtree": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2053,
+            "cache_read_input_tokens": 57585,
+            "output_tokens": 469,
+            "thinking_tokens": 159,
+            "total_tokens": 60121
+          },
+          "claude-haiku-5-5": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 13780,
+            "cache_read_input_tokens": 11515,
+            "output_tokens": 239,
+            "thinking_tokens": 73,
+            "total_tokens": 25538
+          }
+        },
+        "total": {
+          "input_tokens": 18,
+          "cache_creation_input_tokens": 15833,
+          "cache_read_input_tokens": 69100,
+          "output_tokens": 708,
+          "thinking_tokens": 232,
+          "total_tokens": 85659
+        }
+      },
+      "elapsed_ms": 14826,
+      "status": "completed",
+      "completeness": "complete",
+      "excluded": [
+        "P",
+        "S.A",
+        "S.B",
+        "S.C",
+        "GS",
+        "T.A",
+        "T.C",
+        "G.C"
+      ],
+      "note": "G.B is claude-haiku-5-5 while T.B is claude-opus-5-5; attribute per model. Do not add G.B elapsed to T.B."
+    },
+    {
+      "id": "R3-ambiguous",
+      "records": "default",
+      "requested_agent": "ada3d4768bc8b8ec8",
+      "execution": null,
+      "expected": "ambiguous_execution",
+      "choices": [
+        1,
+        10,
+        25
+      ],
+      "choice_start_uuids_from": "start_line records' uuid in the T transcript"
+    },
+    {
+      "id": "R3-select-B",
+      "records": "default",
+      "target": "T.B",
+      "resume_call": {
+        "call_line": 81,
+        "tool_use_id": "toolu_01lDHXYzCKQAni2IWQrnBTYQ",
+        "result_line": 83,
+        "returned_agent_id": "ada3d4768bc8b8ec8",
+        "target": "ada3d4768bc8b8ec8",
+        "result_status": null,
+        "resolved_model": null
+      },
+      "must_exclude": [
+        "T.A",
+        "T.C"
+      ],
+      "self_total": 60121
+    },
+    {
+      "id": "R3-select-A",
+      "records": "default",
+      "target": "T.A",
+      "must_exclude": [
+        "T.B",
+        "T.C"
+      ],
+      "self_total": 25414,
+      "note": "Later invocations B/C in the same transcript are not part of A."
+    },
+    {
+      "id": "R4",
+      "records": "default",
+      "target": "T.B",
+      "intermediate_turn_end_lines": [
+        16,
+        20
+      ],
+      "end_line": 24,
+      "elapsed_ms": 14826,
+      "wrong_if_cut_at_first_turn_end": true,
+      "note": "Same segment (no coordinator message), wake-ups by grandchild handback (origin.kind=peer) and grandchild task-notification; parent receives one stop notification after the last turn."
+    },
+    {
+      "id": "R5-running",
+      "records": "running",
+      "target": "S.C@running",
+      "status": "running",
+      "elapsed_ms": null,
+      "known_self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 541,
+            "cache_read_input_tokens": 32563,
+            "output_tokens": 212,
+            "thinking_tokens": 0,
+            "total_tokens": 33320
+          }
+        },
+        "total": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 541,
+          "cache_read_input_tokens": 32563,
+          "output_tokens": 212,
+          "thinking_tokens": 0,
+          "total_tokens": 33320
+        }
+      },
+      "final_self": null,
+      "unanswered_request_lines": [
+        33
+      ]
+    },
+    {
+      "id": "R5-interrupted",
+      "records": "default",
+      "target": "S.C",
+      "status": "interrupted",
+      "elapsed_ms": 9713,
+      "known_self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 8,
+            "cache_creation_input_tokens": 778,
+            "cache_read_input_tokens": 65905,
+            "output_tokens": 419,
+            "thinking_tokens": 0,
+            "total_tokens": 67110
+          }
+        },
+        "total": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 778,
+          "cache_read_input_tokens": 65905,
+          "output_tokens": 419,
+          "thinking_tokens": 0,
+          "total_tokens": 67110
+        }
+      },
+      "completeness": "partial",
+      "stop_call": {
+        "call_line": 178,
+        "tool_use_id": "toolu_015g14V5zCCaHCn5IMpYVL4b",
+        "result_line": 179,
+        "returned_agent_id": "",
+        "target": "a532a52d8e39263cd",
+        "result_status": null,
+        "resolved_model": null
+      },
+      "reason": "TaskStop killed S.C while an API request (unanswered_request_lines) was in flight; its usage is not recorded. Keep known subtotal; do not report it as complete or zero."
+    },
+    {
+      "id": "R5-handback-before-descendant-end",
+      "records": "running-grandchild",
+      "target": "S.B@running-grandchild",
+      "status": "running",
+      "handback_line": 17,
+      "elapsed_ms": null,
+      "known_self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 6,
+            "cache_creation_input_tokens": 1181,
+            "cache_read_input_tokens": 27825,
+            "output_tokens": 448,
+            "thinking_tokens": 102,
+            "total_tokens": 29460
+          }
+        },
+        "total": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 1181,
+          "cache_read_input_tokens": 27825,
+          "output_tokens": 448,
+          "thinking_tokens": 102,
+          "total_tokens": 29460
+        }
+      },
+      "known_subtree": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 6,
+            "cache_creation_input_tokens": 1181,
+            "cache_read_input_tokens": 27825,
+            "output_tokens": 448,
+            "thinking_tokens": 102,
+            "total_tokens": 29460
+          },
+          "claude-haiku-5-5": {
+            "input_tokens": 12,
+            "cache_creation_input_tokens": 7800,
+            "cache_read_input_tokens": 74676,
+            "output_tokens": 789,
+            "thinking_tokens": 157,
+            "total_tokens": 83277
+          }
+        },
+        "total": {
+          "input_tokens": 18,
+          "cache_creation_input_tokens": 8981,
+          "cache_read_input_tokens": 102501,
+          "output_tokens": 1237,
+          "thinking_tokens": 259,
+          "total_tokens": 112737
+        }
+      },
+      "final_subtree": null,
+      "reason": "S.B already handed back its report but has no stop notification; Claude Code keeps the run alive until its background children end and S.B consumes further turns afterwards (see final S.B). Handback is not the terminal boundary."
+    },
+    {
+      "id": "R5-final-after-descendant",
+      "records": "default",
+      "target": "S.B",
+      "included": [
+        "S.B",
+        "GS"
+      ],
+      "self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2350,
+            "cache_read_input_tokens": 58105,
+            "output_tokens": 667,
+            "thinking_tokens": 187,
+            "total_tokens": 61136
+          }
+        },
+        "total": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2350,
+          "cache_read_input_tokens": 58105,
+          "output_tokens": 667,
+          "thinking_tokens": 187,
+          "total_tokens": 61136
+        }
+      },
+      "subtree": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2350,
+            "cache_read_input_tokens": 58105,
+            "output_tokens": 667,
+            "thinking_tokens": 187,
+            "total_tokens": 61136
+          },
+          "claude-haiku-5-5": {
+            "input_tokens": 18,
+            "cache_creation_input_tokens": 8167,
+            "cache_read_input_tokens": 118292,
+            "output_tokens": 1058,
+            "thinking_tokens": 157,
+            "total_tokens": 127535
+          }
+        },
+        "total": {
+          "input_tokens": 32,
+          "cache_creation_input_tokens": 10517,
+          "cache_read_input_tokens": 176397,
+          "output_tokens": 1725,
+          "thinking_tokens": 344,
+          "total_tokens": 188671
+        }
+      },
+      "elapsed_ms": 23452,
+      "handback_elapsed_ms": 9040,
+      "status": "completed",
+      "completeness": "complete"
+    },
+    {
+      "id": "R5-tool-error-not-agent-failure",
+      "records": "default",
+      "target": "G.C",
+      "status": "completed",
+      "note": "G.C's first tool_result has is_error=true (harness rejected a foreground sleep). The agent still completed; tool failure is not execution failure."
+    },
+    {
+      "id": "R2-T.C",
+      "records": "default",
+      "target": "T.C",
+      "included": [
+        "T.C",
+        "G.C"
+      ],
+      "self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2489,
+            "cache_read_input_tokens": 66070,
+            "output_tokens": 633,
+            "thinking_tokens": 172,
+            "total_tokens": 69206
+          }
+        },
+        "total": {
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 2489,
+          "cache_read_input_tokens": 66070,
+          "output_tokens": 633,
+          "thinking_tokens": 172,
+          "total_tokens": 69206
+        }
+      },
+      "subtree": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 14,
+            "cache_creation_input_tokens": 2489,
+            "cache_read_input_tokens": 66070,
+            "output_tokens": 633,
+            "thinking_tokens": 172,
+            "total_tokens": 69206
+          },
+          "claude-haiku-5-5": {
+            "input_tokens": 6,
+            "cache_creation_input_tokens": 8107,
+            "cache_read_input_tokens": 31967,
+            "output_tokens": 1246,
+            "thinking_tokens": 777,
+            "total_tokens": 41326
+          }
+        },
+        "total": {
+          "input_tokens": 20,
+          "cache_creation_input_tokens": 10596,
+          "cache_read_input_tokens": 98037,
+          "output_tokens": 1879,
+          "thinking_tokens": 949,
+          "total_tokens": 110532
+        }
+      },
+      "elapsed_ms": 24817,
+      "handback_elapsed_ms": 7841,
+      "status": "completed",
+      "completeness": "complete"
+    },
+    {
+      "id": "R6-context-not-consumption",
+      "records": "default",
+      "target": "T.B",
+      "notification_subagent_tokens": 16048,
+      "self_total": 60121,
+      "note": "subagent_tokens/totalTokens equal the last message's input+cache+output (context size) for single-turn runs and are never consumption sums."
+    },
+    {
+      "id": "L2",
+      "records": "override",
+      "env": {
+        "CLAUDE_CONFIG_DIR": "records/override"
+      },
+      "target": "O.child",
+      "spawn": {
+        "call_line": 6,
+        "tool_use_id": "toolu_01o9SJ6eyt37o0Oe262euaRf",
+        "result_line": 7,
+        "returned_agent_id": "a902a36167c8ba175",
+        "target": null,
+        "result_status": "completed",
+        "resolved_model": "claude-opus-5-5"
+      },
+      "self": {
+        "by_model": {
+          "claude-opus-5-5": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 11581,
+            "cache_read_input_tokens": 10914,
+            "output_tokens": 98,
+            "thinking_tokens": 0,
+            "total_tokens": 22597
+          }
+        },
+        "total": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 11581,
+          "cache_read_input_tokens": 10914,
+          "output_tokens": 98,
+          "thinking_tokens": 0,
+          "total_tokens": 22597
+        }
+      },
+      "elapsed_ms": 4346,
+      "status": "completed",
+      "completeness": "complete"
+    },
+    {
+      "id": "R7",
+      "records": "events/r7-events.jsonl",
+      "persisted_transcripts": 0,
+      "persisted_files": [
+        "ephemeral/.../subagents/agent-*.meta.json"
+      ],
+      "child_usage": null,
+      "child_status": "completed",
+      "child_native_duration_ms": 4258,
+      "reason": "--no-session-persistence writes no transcript. stream-json assistant usage is the message-start snapshot (output_tokens not final) and the child's final message is not emitted; result.modelUsage aggregates parent+child per model. Child self usage cannot be derived; report unknown, not zero."
+    }
+  ]
+}
