@@ -38,6 +38,57 @@ func TestOpenCodeR1AndReuse(t *testing.T) {
 	}
 }
 
+func TestOpenCodeMissingStartKeepsUsage(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(t.TempDir(), "missing-start.db")
+	copyFile(t, filepath.Join(root, "testdata/opencode-v2/native/records/r1.db"), path)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`DELETE FROM session_message WHERE id = ?`, "msg_qn9Nm9lAM88DnBsu9IEghMHl4B"); err != nil {
+		t.Fatal(err)
+	}
+	got := measureOpenCode(t, "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe", "", path)
+	var unattributed report.Tokens
+	for _, usage := range got.UnattributedUsage {
+		addOpenCode(&unattributed, usage.Tokens)
+	}
+	if got.Target.ExecutionID != nil || got.Timing.ElapsedMilliseconds != nil || hasCode(got.Diagnostics, "execution_not_found") {
+		t.Fatalf("missing start must not invent an execution: %+v elapsed %+v", got.Target, got.Timing.ElapsedMilliseconds)
+	}
+	if value(unattributed.Input) != 10200 || value(unattributed.Output) != 66 || value(unattributed.Reasoning) != 211 || value(unattributed.CacheRead) != 24704 || value(unattributed.CacheWrite) != 0 || unattributed.Total != nil {
+		t.Fatalf("observed counters must stay unattributed: %+v", unattributed)
+	}
+}
+
+func addOpenCode(sum *report.Tokens, extra report.Tokens) {
+	add := func(dst **int64, value *int64) {
+		if value == nil {
+			return
+		}
+		if *dst == nil {
+			zero := int64(0)
+			*dst = &zero
+		}
+		**dst += *value
+	}
+	add(&sum.Input, extra.Input)
+	add(&sum.Output, extra.Output)
+	add(&sum.Reasoning, extra.Reasoning)
+	add(&sum.CacheRead, extra.CacheRead)
+	add(&sum.CacheWrite, extra.CacheWrite)
+	add(&sum.Total, extra.Total)
+}
+
+func value(n *int64) int64 {
+	if n == nil {
+		return -1
+	}
+	return *n
+}
+
 func TestOpenCodeReusedChildKeepsSeparateParents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "reuse.db")
 	writeOpenCodeDB(t, path, []string{

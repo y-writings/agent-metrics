@@ -419,6 +419,7 @@ func descendantThreads(target string, index codexIndex) map[string]bool {
 func buildCodexResult(target string, included map[string]bool, index codexIndex, files []codexFile) ReadResult {
 	result := ReadResult{AgentID: target}
 	seenActivity := map[string]bool{}
+	var activities []codexItemRef
 	for _, file := range files {
 		threadID := file.threadID
 		if threadID == "" || !included[threadID] {
@@ -491,23 +492,36 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 					continue
 				}
 				seenActivity[key] = true
-				if included[record.item.AgentThreadID] && index.threads[record.item.AgentThreadID] != nil && index.threads[record.item.AgentThreadID].file != "" {
-					continue
-				}
-				child := record.item.AgentPath
-				if child == "" {
-					child = record.item.AgentThreadID
-				}
-				result.Delegations = append(result.Delegations, Delegation{
-					ParentAgentID: threadID,
-					ChildAgentID:  child,
-					SourceID:      sourceID,
-					Parent:        &ExecutionRef{AgentID: threadID, ExecutionID: record.item.TurnID},
-				})
+				activities = append(activities, codexItemRef{parent: threadID, turn: record.item.TurnID, childThread: record.item.AgentThreadID, childPath: record.item.AgentPath, sourceID: sourceID})
 			}
 		}
 	}
+	linked := map[string]bool{}
+	for _, event := range result.Events {
+		if event.Execution != "" && event.ParentExecution != "" {
+			linked[event.Session+"|"+event.ParentExecution] = true
+		}
+	}
+	for _, activity := range activities {
+		if linked[activity.childThread+"|"+activity.turn] {
+			continue
+		}
+		child := activity.childPath
+		if child == "" {
+			child = activity.childThread
+		}
+		result.Delegations = append(result.Delegations, Delegation{
+			ParentAgentID: activity.parent,
+			ChildAgentID:  child,
+			SourceID:      activity.sourceID,
+			Parent:        &ExecutionRef{AgentID: activity.parent, ExecutionID: activity.turn},
+		})
+	}
 	return result
+}
+
+type codexItemRef struct {
+	parent, turn, childThread, childPath, sourceID string
 }
 
 func codexModel(thread *codexThread, turnID string) (string, bool) {

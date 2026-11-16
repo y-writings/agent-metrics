@@ -55,6 +55,33 @@ func TestCodexReuseAndDescendants(t *testing.T) {
 	}
 }
 
+func TestCodexMetadataOnlyChildStaysMissing(t *testing.T) {
+	root := moduleRoot(t)
+	source := filepath.Join(root, "testdata/codex/native/records/default/sessions")
+	dir := filepath.Join(t.TempDir(), "sessions")
+	if output, err := exec.Command("cp", "-a", source, dir).CombinedOutput(); err != nil {
+		t.Fatalf("copy sessions: %v\n%s", err, output)
+	}
+	grandchild := filepath.Join(dir, "2026/01/01/rollout-2026-01-01T20-35-17-c862bf21-560e-75bf-9412-c5a182ab79ba.jsonl")
+	raw, err := os.ReadFile(grandchild)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := splitLines(raw)
+	if len(lines) == 0 {
+		t.Fatal("grandchild rollout is empty")
+	}
+	if err := os.WriteFile(grandchild, append(lines[0], '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureCodex(t, "/root/capture_target", "b16afe9d-0ec9-7c62-80d5-b12717dbd878", dir)
+	assertTotal(t, got.Usage.Self, 82419)
+	assertTotal(t, got.Usage.Subtree, 82419)
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 43699 || got.Usage.SubtreeCompleteness != "partial" || !hasCode(got.Diagnostics, "missing_descendant") {
+		t.Fatalf("metadata-only child must stay missing: elapsed %+v usage %+v diagnostics %+v", got.Timing.ElapsedMilliseconds, got.Usage, got.Diagnostics)
+	}
+}
+
 func TestCodexUsageWithoutTurnIDStaysUnattributed(t *testing.T) {
 	root := moduleRoot(t)
 	source := filepath.Join(root, "testdata/codex/native/records/r1/sessions/2026/01/01/rollout-2026-01-01T20-33-36-8f89828d-ffe7-73df-8c40-fc37fa99eb91.jsonl")

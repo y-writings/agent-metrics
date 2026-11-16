@@ -184,7 +184,16 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 		}
 	}
 	for sessionID, sessionMessages := range bySession {
-		executions[sessionID] = openCodeExecutions(sessions[sessionID], sessionMessages)
+		execs, unscoped := openCodeExecutions(sessions[sessionID], sessionMessages)
+		executions[sessionID] = execs
+		for _, usage := range unscoped {
+			result.Events = append(result.Events, Event{
+				ID: usage.id, UsageID: openCodeUsageID(usage), Session: sessionID, SourceSession: sessionID,
+				Kind: "usage", Provider: usage.provider, Model: usage.model,
+				Input: usage.tokens.input, Output: usage.tokens.output, Reasoning: usage.tokens.reasoning,
+				CacheRead: usage.tokens.cacheRead, CacheWrite: usage.tokens.cacheWrite,
+			})
+		}
 	}
 	for sessionID, sessionExecutions := range executions {
 		for index := range sessionExecutions {
@@ -230,7 +239,7 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 	return result
 }
 
-func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []openCodeExecution {
+func openCodeExecutions(session openCodeSession, messages []openCodeMessage) ([]openCodeExecution, []openCodeMessage) {
 	users := 0
 	for _, message := range messages {
 		if message.kind == "user" {
@@ -238,6 +247,7 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []o
 		}
 	}
 	var executions []openCodeExecution
+	var unscoped []openCodeMessage
 	var current *openCodeExecution
 	for _, message := range messages {
 		switch message.kind {
@@ -250,7 +260,11 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []o
 				fresh: users == 1 && message.created >= session.created && message.created-session.created <= openCodeFreshSessionWindow,
 			}
 		case "assistant":
-			if current == nil || message.tokens == nil {
+			if message.tokens == nil {
+				continue
+			}
+			if current == nil {
+				unscoped = append(unscoped, message)
 				continue
 			}
 			current.usage = append(current.usage, message)
@@ -282,7 +296,7 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []o
 			model: session.model, provider: session.provider, tokens: &session.cumulative,
 		}}
 	}
-	return executions
+	return executions, unscoped
 }
 
 func openCodeChildLinked(executions []openCodeExecution) bool {
