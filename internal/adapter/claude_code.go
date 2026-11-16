@@ -311,6 +311,8 @@ func claudeSegments(transcript claudeTranscript) []claudeExecution {
 		}
 		var last *claudeRecord
 		pendingRequest := false
+		seenMessage := map[string]bool{}
+		usageMessage := map[string]bool{}
 		for i := range records {
 			record := &records[i]
 			if isClaudeTerminal(*record) {
@@ -324,9 +326,18 @@ func claudeSegments(transcript claudeTranscript) []claudeExecution {
 			}
 			if record.kind == "assistant" {
 				pendingRequest = false
+				if record.messageID != "" {
+					seenMessage[record.messageID] = true
+					if record.usage != nil {
+						usageMessage[record.messageID] = true
+						execution.usage = append(execution.usage, *record)
+					}
+				}
 			}
-			if record.usage != nil && record.messageID != "" {
-				execution.usage = append(execution.usage, *record)
+		}
+		for messageID := range seenMessage {
+			if !usageMessage[messageID] {
+				execution.partial = true
 			}
 		}
 		if pendingRequest {

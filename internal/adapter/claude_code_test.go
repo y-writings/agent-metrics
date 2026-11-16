@@ -72,6 +72,46 @@ func TestClaudeMultipleTurnsAndReuse(t *testing.T) {
 	}
 }
 
+func TestClaudeMissingResponseUsageStaysPartial(t *testing.T) {
+	root := moduleRoot(t)
+	projects := filepath.Join(t.TempDir(), "projects")
+	if output, err := exec.Command("cp", "-a", filepath.Join(root, "testdata/claude-code/native/records/r1/projects"), projects).CombinedOutput(); err != nil {
+		t.Fatalf("copy projects: %v\n%s", err, output)
+	}
+	source := filepath.Join(projects, "-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	for _, line := range splitLines(raw) {
+		if contains(string(line), "msg_011ChCcZwPD7f8yhCIKPXlfa") {
+			var record map[string]any
+			if err := json.Unmarshal(line, &record); err != nil {
+				t.Fatal(err)
+			}
+			if message, ok := record["message"].(map[string]any); ok {
+				delete(message, "usage")
+			}
+			rewritten, err := json.Marshal(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			line = rewritten
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if err := os.WriteFile(source, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureClaude(t, "ada3d4768bc8b8ec8", "", projects)
+	assertTotal(t, got.Usage.Self, 13777)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" {
+		t.Fatalf("a response without usage must not leave the remaining subtotal complete: %+v", got.Usage)
+	}
+}
+
 func TestClaudeDuplicateLaunchReferenceStillLinksChild(t *testing.T) {
 	root := moduleRoot(t)
 	projects := filepath.Join(t.TempDir(), "projects")
