@@ -2,60 +2,96 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/y-writings/agent-metrics/internal/adapter"
 	"github.com/y-writings/agent-metrics/internal/report"
 )
 
 func main() {
-	if len(os.Args) < 2 || os.Args[1] != "collect" {
-		fmt.Fprintln(os.Stderr, "usage: agent-metrics collect --product PRODUCT --agent AGENT_ID [--execution EXECUTION_ID] [--records PATH]")
-		os.Exit(2)
+	os.Exit(run(os.Args, os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) < 2 || args[1] != "collect" {
+		fmt.Fprintln(stderr, "usage: agent-metrics collect --product PRODUCT --agent AGENT_ID [--execution EXECUTION_ID] [--records PATH]")
+		return 2
 	}
-	fs := flag.NewFlagSet("collect", flag.ExitOnError)
+	fs := flag.NewFlagSet("collect", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	product := fs.String("product", "", "claude-code, codex, or opencode-v2")
-	agent := fs.String("agent", "", "agent/session identifier returned when the sub-agent was created")
-	execution := fs.String("execution", "", "one execution identifier (required when an agent was reused)")
-	records := fs.String("records", "", "override the product's default record location")
-	_ = fs.Parse(os.Args[2:])
+	agent := fs.String("agent", "", "identifier returned when the sub-agent was created")
+	execution := fs.String("execution", "", "one execution identifier when the agent was reused")
+	records := fs.String("records", "", "explicit record location; overrides product configuration and the default")
+	if err := fs.Parse(args[2:]); err != nil {
+		return 2
+	}
 	if *product == "" || *agent == "" {
-		fmt.Fprintln(os.Stderr, "agent-metrics: --product and --agent are required")
-		fs.Usage()
-		os.Exit(2)
+		fmt.Fprintln(stderr, "usage: agent-metrics collect --product PRODUCT --agent AGENT_ID [--execution EXECUTION_ID] [--records PATH]")
+		return 2
 	}
 	a, err := adapter.New(*product)
 	if err != nil {
-		fatal(err)
+		writeReport(stdout, unresolved("", *agent, "unsupported_product", "unsupported product"))
+		return 1
 	}
-	path := *records
-	if path == "" {
-		path = expandHome(a.DefaultRecords())
-	}
-	events, warnings, err := a.Parse(path)
+	source, err := adapter.ResolveSource(a.Name(), *records)
 	if err != nil {
-		fatal(err)
-	}
-	r := report.Collect(a.Name(), *agent, *execution, events, warnings)
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(r); err != nil {
-		fatal(err)
-	}
-}
-
-func expandHome(path string) string {
-	if path == "~" || strings.HasPrefix(path, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, strings.TrimPrefix(path, "~/"))
+		code, message := "invalid_source", "record location could not be resolved"
+		var sourceErr *adapter.SourceError
+		if errors.As(err, &sourceErr) {
+			code, message = sourceErr.Code, sourceErr.Message
 		}
+		writeReport(stdout, unresolved(a.Name(), *agent, code, message))
+		return 1
 	}
-	return path
+	result, err := a.Read(adapter.Request{Agent: *agent, Execution: *execution, Records: source})
+	if err != nil {
+		code, message := "read_error", "records could not be read"
+		var sourceErr *adapter.SourceError
+		if errors.As(err, &sourceErr) {
+			code, message = sourceErr.Code, sourceErr.Message
+		}
+		writeReport(stdout, unresolved(a.Name(), *agent, code, message))
+		return 1
+	}
+	collected := report.Collect(a.Name(), adapter.Request{Agent: *agent, Execution: *execution, Records: source}, result)
+	writeReport(stdout, collected)
+	if collected.Completeness == "incomplete" {
+		return 1
+	}
+	return 0
 }
 
-func fatal(err error) { fmt.Fprintln(os.Stderr, "agent-metrics:", err); os.Exit(1) }
+func unresolved(product, agent, code, message string) report.ExecutionReport {
+	return report.ExecutionReport{
+		SchemaVersion: report.ExecutionSchemaVersion,
+		Target:        report.Target{Product: product, AgentID: agent},
+		Status:        "unknown",
+		Completeness:  "incomplete",
+		Usage: report.UsageScopes{
+			Self:                []report.ModelUsage{},
+			Subtree:             []report.ModelUsage{},
+			SelfCompleteness:    "incomplete",
+			SubtreeCompleteness: "incomplete",
+		},
+		Executions:        []report.Execution{},
+		UnattributedUsage: []report.UnattributedUsage{},
+		Diagnostics: []report.Diagnostic{{
+			Code:    code,
+			Message: message,
+			Scope:   "source",
+		}},
+	}
+}
+
+func writeReport(stdout io.Writer, value report.ExecutionReport) {
+	encoder := json.NewEncoder(stdout)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(value)
+}
