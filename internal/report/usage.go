@@ -182,22 +182,34 @@ func executionDiagnostic(code, message, agentID, executionID, metric, sourceID s
 	return diagnostic
 }
 
-func addTokens(sum *Tokens, extra Tokens) {
-	add(&sum.Input, extra.Input)
-	add(&sum.CacheRead, extra.CacheRead)
-	add(&sum.CacheWrite, extra.CacheWrite)
-	add(&sum.Output, extra.Output)
-	add(&sum.Reasoning, extra.Reasoning)
-	add(&sum.Total, extra.Total)
+func foldUsageTokens(rows []Tokens) (Tokens, []string) {
+	var tokens Tokens
+	var partials []string
+	tokens.Input, partials = foldUsageCounter(rows, partials, "input", func(row Tokens) *int64 { return row.Input })
+	tokens.CacheRead, partials = foldUsageCounter(rows, partials, "cache_read", func(row Tokens) *int64 { return row.CacheRead })
+	tokens.CacheWrite, partials = foldUsageCounter(rows, partials, "cache_write", func(row Tokens) *int64 { return row.CacheWrite })
+	tokens.Output, partials = foldUsageCounter(rows, partials, "output", func(row Tokens) *int64 { return row.Output })
+	tokens.Reasoning, partials = foldUsageCounter(rows, partials, "reasoning", func(row Tokens) *int64 { return row.Reasoning })
+	tokens.Total, partials = foldUsageCounter(rows, partials, "total", func(row Tokens) *int64 { return row.Total })
+	return tokens, partials
 }
 
-func add(dst **int64, value *int64) {
-	if value == nil {
-		return
+func foldUsageCounter(rows []Tokens, partials []string, metric string, get func(Tokens) *int64) (*int64, []string) {
+	var sum int64
+	seen := 0
+	for _, row := range rows {
+		value := get(row)
+		if value == nil {
+			continue
+		}
+		seen++
+		sum += *value
 	}
-	if *dst == nil {
-		zero := int64(0)
-		*dst = &zero
+	if seen == 0 {
+		return nil, partials
 	}
-	**dst += *value
+	if seen != len(rows) {
+		return nil, append(partials, metric)
+	}
+	return &sum, partials
 }

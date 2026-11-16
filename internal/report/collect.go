@@ -266,21 +266,34 @@ func Collect(product string, request adapter.Request, result adapter.ReadResult)
 		value := result.AgentID
 		report.Target.SessionID = &value
 	}
-	sums := map[modelKey]Tokens{}
+	grouped := map[modelKey][]Tokens{}
 	var sumOrder []modelKey
 	for _, execution := range report.Executions {
 		for _, usage := range execution.Usage {
 			key := modelKey{deref(usage.Provider), deref(usage.Model)}
-			if _, ok := sums[key]; !ok {
+			if _, ok := grouped[key]; !ok {
 				sumOrder = append(sumOrder, key)
 			}
-			tokens := sums[key]
-			addTokens(&tokens, usage.Tokens)
-			sums[key] = tokens
+			grouped[key] = append(grouped[key], usage.Tokens)
 		}
 	}
+	unknownSubtree := false
 	for _, key := range sumOrder {
-		report.Usage.Subtree = append(report.Usage.Subtree, ModelUsage{Provider: strPtr(key.provider), Model: strPtr(key.model), Tokens: sums[key]})
+		tokens, partials := foldUsageTokens(grouped[key])
+		if len(partials) > 0 {
+			unknownSubtree = true
+		}
+		for _, metric := range partials {
+			label := key.model
+			if key.provider != "" && key.model != "" {
+				label = key.provider + "/" + key.model
+			}
+			report.add(Diagnostic{
+				Code: "unknown_counter", Message: fmt.Sprintf("subtree usage for %s is missing %s on some executions", label, metric),
+				Scope: "execution", AgentID: native, ExecutionID: &selected, Metric: metric,
+			})
+		}
+		report.Usage.Subtree = append(report.Usage.Subtree, ModelUsage{Provider: strPtr(key.provider), Model: strPtr(key.model), Tokens: tokens})
 	}
 	sort.Slice(report.Usage.Subtree, func(i, j int) bool {
 		return modelLess(report.Usage.Subtree[i], report.Usage.Subtree[j])
@@ -289,6 +302,9 @@ func Collect(product string, request adapter.Request, result adapter.ReadResult)
 		return modelLess(report.Usage.Self[i], report.Usage.Self[j])
 	})
 	report.Usage.SubtreeCompleteness = subtreeCompleteness(usageByKey, len(missing) > 0 || len(ambiguous) > 0, report.Usage.Subtree)
+	if unknownSubtree {
+		report.Usage.SubtreeCompleteness = worse(report.Usage.SubtreeCompleteness, "partial")
+	}
 	if report.Completeness == "complete" && (report.Usage.SelfCompleteness != "complete" || report.Usage.SubtreeCompleteness != "complete") {
 		report.Completeness = "partial"
 	}

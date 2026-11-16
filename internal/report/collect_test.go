@@ -40,6 +40,42 @@ func TestCollectExecutionTreeWithIndependentTurnIDs(t *testing.T) {
 	}
 }
 
+func TestCollectSubtreePreservesUnknownCounter(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	events := []adapter.Event{
+		{ID: "start", Session: "parent", Execution: "run", Kind: "execution_start", Time: t0},
+		{ID: "parent-use", Session: "parent", Execution: "run", Kind: "usage", Model: "m", Input: p(2), CacheRead: p(10)},
+		{ID: "end", Session: "parent", Execution: "run", Kind: "execution_end", Time: t0.Add(time.Second)},
+		{ID: "child-start", Session: "child", Execution: "child-run", ParentExecution: "run", Kind: "execution_start", Time: t0},
+		{ID: "child-use", Session: "child", Execution: "child-run", Kind: "usage", Model: "m", Input: p(3)},
+		{ID: "child-end", Session: "child", Execution: "child-run", Kind: "execution_end", Time: t0.Add(time.Second)},
+	}
+	got := collectEvents("codex", "parent", "run", events)
+	if got.Usage.SelfCompleteness != "complete" || got.Usage.Self[0].Tokens.CacheRead == nil || *got.Usage.Self[0].Tokens.CacheRead != 10 {
+		t.Fatalf("self counters stay observed: %+v", got.Usage)
+	}
+	if len(got.Usage.Subtree) != 1 || got.Usage.Subtree[0].Tokens.Input == nil || *got.Usage.Subtree[0].Tokens.Input != 5 || got.Usage.Subtree[0].Tokens.CacheRead != nil {
+		t.Fatalf("unknown child cache_read must stay null in the subtree: %+v", got.Usage.Subtree)
+	}
+	if got.Completeness != "partial" || got.Usage.SubtreeCompleteness != "partial" || !subtreeCounterDiagnostic(got, "cache_read") {
+		t.Fatalf("subtree must be partial when a same-model counter is missing: %+v", got.Diagnostics)
+	}
+	events[4].Model = "other"
+	separate := collectEvents("codex", "parent", "run", events)
+	if separate.Completeness != "complete" || len(separate.Usage.Subtree) != 2 || separate.Usage.Subtree[0].Tokens.CacheRead == nil || *separate.Usage.Subtree[0].Tokens.CacheRead != 10 {
+		t.Fatalf("a different model must not erase an observed counter: %+v", separate.Usage)
+	}
+}
+
+func subtreeCounterDiagnostic(got ExecutionReport, metric string) bool {
+	for _, diagnostic := range got.Diagnostics {
+		if diagnostic.Code == "unknown_counter" && diagnostic.Metric == metric {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCollectScopesSharedExecutionIDToAgent(t *testing.T) {
 	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	events := []adapter.Event{

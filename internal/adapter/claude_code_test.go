@@ -112,6 +112,47 @@ func TestClaudeMissingResponseUsageStaysPartial(t *testing.T) {
 	}
 }
 
+func TestClaudeMissingMessageIDKeepsUsagePartial(t *testing.T) {
+	root := moduleRoot(t)
+	projects := filepath.Join(t.TempDir(), "projects")
+	if output, err := exec.Command("cp", "-a", filepath.Join(root, "testdata/claude-code/native/records/r1/projects"), projects).CombinedOutput(); err != nil {
+		t.Fatalf("copy projects: %v\n%s", err, output)
+	}
+	source := filepath.Join(projects, "-fixture-workspace-agent-metrics/a8d0d672-209c-4bab-86d6-48fec0f52850/subagents/agent-ada3d4768bc8b8ec8.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	for _, line := range splitLines(raw) {
+		if contains(string(line), "msg_011ChCcZwPD7f8yhCIKPXlfa") {
+			var record map[string]any
+			if err := json.Unmarshal(line, &record); err != nil {
+				t.Fatal(err)
+			}
+			if message, ok := record["message"].(map[string]any); ok {
+				delete(message, "id")
+			}
+			rewritten, err := json.Marshal(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			line = rewritten
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if err := os.WriteFile(source, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureClaude(t, "ada3d4768bc8b8ec8", "", projects)
+	assertTotal(t, got.Usage.Self, 25414)
+	assertTotal(t, got.Usage.Subtree, 25414)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" || !hasCode(got.Diagnostics, "missing_message_id") {
+		t.Fatalf("usage without a message id must stay partial: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+}
+
 func TestClaudeDuplicateLaunchReferenceStillLinksChild(t *testing.T) {
 	root := moduleRoot(t)
 	projects := filepath.Join(t.TempDir(), "projects")

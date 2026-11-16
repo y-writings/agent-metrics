@@ -55,6 +55,60 @@ func TestCodexReuseAndDescendants(t *testing.T) {
 	}
 }
 
+func TestCodexMissingChildCounterStaysPartialInSubtree(t *testing.T) {
+	root := moduleRoot(t)
+	source := filepath.Join(root, "testdata/codex/native/records/default/sessions")
+	dir := filepath.Join(t.TempDir(), "sessions")
+	if output, err := exec.Command("cp", "-a", source, dir).CombinedOutput(); err != nil {
+		t.Fatalf("copy sessions: %v\n%s", err, output)
+	}
+	grandchild := filepath.Join(dir, "2026/01/01/rollout-2026-01-01T20-35-17-c862bf21-560e-75bf-9412-c5a182ab79ba.jsonl")
+	raw, err := os.ReadFile(grandchild)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	removed := 0
+	for _, line := range splitLines(raw) {
+		if contains(string(line), "token_usage_record") {
+			var record map[string]any
+			if err := json.Unmarshal(line, &record); err != nil {
+				t.Fatal(err)
+			}
+			payload := record["payload"].(map[string]any)
+			usage := payload["usage"].(map[string]any)
+			if _, ok := usage["cached_input_tokens"]; ok {
+				delete(usage, "cached_input_tokens")
+				removed++
+			}
+			rewritten, err := json.Marshal(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			line = rewritten
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if removed != 2 {
+		t.Fatalf("expected both G.B usage records, removed %d", removed)
+	}
+	if err := os.WriteFile(grandchild, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureCodex(t, "/root/capture_target", "b16afe9d-0ec9-7c62-80d5-b12717dbd878", dir)
+	assertTokens(t, got.Usage.Self, 82038, 81024, 0, 381, 123, 82419)
+	if len(got.Usage.Subtree) != 1 || got.Usage.Subtree[0].Tokens.CacheRead != nil || got.Usage.Subtree[0].Tokens.Input == nil || *got.Usage.Subtree[0].Tokens.Input != 122200 || got.Usage.Subtree[0].Tokens.Total == nil || *got.Usage.Subtree[0].Tokens.Total != 122782 {
+		t.Fatalf("observed subtree counters must remain while the unknown cache read stays null: %+v", got.Usage.Subtree)
+	}
+	if got.Usage.SelfCompleteness != "complete" || got.Usage.SubtreeCompleteness != "partial" || got.Completeness != "partial" || !hasCode(got.Diagnostics, "unknown_counter") {
+		t.Fatalf("subtree must be partial when G.B cache read is unknown: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 43699 {
+		t.Fatalf("elapsed stays the parent boundary: %+v", got.Timing)
+	}
+}
+
 func TestCodexMetadataOnlyChildStaysMissing(t *testing.T) {
 	root := moduleRoot(t)
 	source := filepath.Join(root, "testdata/codex/native/records/default/sessions")

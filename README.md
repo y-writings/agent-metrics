@@ -86,6 +86,9 @@ Schema `2.1` keeps the `target`, `timing`, `usage`, `executions`, and
   a missing child can leave self usage and elapsed time intact while the
   subtree is `partial`.
 * Counters that were not observed stay `null`. An observed zero stays `0`.
+  When executions of the same model are summed and only some of them observed
+  a counter, that subtree counter stays `null` and `subtree_completeness` is
+  `partial`.
   OpenCode does not record a native total, so `total` stays `null` without
   making an otherwise complete measurement partial.
 * Usage is counted once per response or message id. A repeated id with

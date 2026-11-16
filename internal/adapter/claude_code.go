@@ -100,7 +100,7 @@ type claudeExecution struct {
 	start, end                                    time.Time
 	startID, endID                                string
 	startDef                                      string
-	spawn, confirmed, terminal, partial           bool
+	spawn, confirmed, terminal, partial, unkeyed  bool
 	usage                                         []claudeRecord
 }
 
@@ -326,11 +326,24 @@ func claudeSegments(transcript claudeTranscript) []claudeExecution {
 			}
 			if record.kind == "assistant" {
 				pendingRequest = false
-				if record.messageID != "" {
-					seenMessage[record.messageID] = true
+				identity := record.messageID
+				if identity == "" {
+					identity = record.uuid
+				}
+				if identity == "" {
+					execution.partial = true
 					if record.usage != nil {
-						usageMessage[record.messageID] = true
+						execution.unkeyed = true
 						execution.usage = append(execution.usage, *record)
+					}
+					continue
+				}
+				seenMessage[identity] = true
+				if record.usage != nil {
+					usageMessage[identity] = true
+					execution.usage = append(execution.usage, *record)
+					if record.messageID == "" {
+						execution.unkeyed = true
 					}
 				}
 			}
@@ -339,6 +352,9 @@ func claudeSegments(transcript claudeTranscript) []claudeExecution {
 			if !usageMessage[messageID] {
 				execution.partial = true
 			}
+		}
+		if execution.unkeyed {
+			execution.partial = true
 		}
 		if pendingRequest {
 			execution.partial = true
@@ -507,10 +523,17 @@ func buildClaudeResult(target string, included map[string]bool, agents map[strin
 			})
 			for _, usage := range dedupeClaudeUsage(execution.usage) {
 				result.Events = append(result.Events, Event{
-					ID: sourceLine(usageSource(transcripts, agent), usage.line), UsageID: usage.messageID, Session: agent, SourceSession: execution.session,
+					ID: sourceLine(usageSource(transcripts, agent), usage.line), UsageID: claudeUsageID(usage), Session: agent, SourceSession: execution.session,
 					Execution: execution.id, Kind: "usage", Model: usage.model,
 					Input: usage.usage.input, CacheRead: usage.usage.cacheRead, CacheWrite: usage.usage.cacheWrite,
 					Output: usage.usage.output, Reasoning: usage.usage.reasoning, Total: usage.usage.total,
+				})
+			}
+			if execution.unkeyed {
+				result.Diagnostics = append(result.Diagnostics, Diagnostic{
+					Code: "missing_message_id", Message: "assistant usage has no message id, so repeated rows cannot be collapsed",
+					Scope: "execution", AgentID: agent, Metric: "usage",
+					Execution: &ExecutionRef{AgentID: agent, ExecutionID: execution.id},
 				})
 			}
 			if execution.partial {
@@ -637,6 +660,13 @@ func claudeAgentReferenced(transcripts []claudeTranscript, agent string) bool {
 		}
 	}
 	return false
+}
+
+func claudeUsageID(record claudeRecord) string {
+	if record.messageID != "" {
+		return record.messageID
+	}
+	return record.uuid
 }
 
 func dedupeClaudeUsage(records []claudeRecord) []claudeRecord {

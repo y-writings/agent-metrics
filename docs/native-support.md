@@ -62,7 +62,9 @@ live の標準保存先での接続確認は未実施であり、fixture 再生�
   （`queue-operation` の `completed`/`killed`、または foreground の
   `status=completed`）が対応するときだけ確定する。途中の `end_turn` や
   handback だけでは終わらせない。
-* usage は assistant `message.id` ごとに 1 回。`total` は
+* usage は assistant `message.id` ごとに 1 回。`message.id` が無い行は
+  その記録の `uuid` で残し、`missing_message_id` で重複を確定できないことを
+  診断する。完全な小計にはしない。`total` は
   input + cache creation + cache read + output。thinking、cache 内訳、
   iterations、通知の `subagent_tokens` は足さない。
 * 保存 transcript に provider は無い。モデルと数値を保持し、provider は null、
@@ -125,6 +127,8 @@ DB を作らない。WAL の committed 行は本体ファイルだけをコピ�
 | `missing_boundary` / `invalid_boundary` | 終端が無い、または終端が開始より前 |
 | `unknown_provider` / `unknown_model` | 帰属が記録に無い。数値は残す |
 | `duplicate_conflict` | 同じ response/message の usage が一致しない |
+| `missing_message_id` | assistant usage に message id が無く、重複を確定できない |
+| `unknown_counter` | 同じモデルの subtree 合算で、一部の実行だけ counter が欠けている |
 | `unsupported_record` | 計測に必要な未知の record type |
 | `truncated_record` | JSONL の末尾が欠けている |
 
