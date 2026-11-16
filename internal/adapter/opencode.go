@@ -218,7 +218,7 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 		}
 		parentExec := executionAt(executions[message.session], message.seq, bySession[message.session])
 		for _, child := range message.childSessions {
-			if len(executions[child]) > 0 {
+			if openCodeChildLinked(executions[child]) {
 				continue
 			}
 			result.Delegations = append(result.Delegations, Delegation{
@@ -283,6 +283,18 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) []o
 		}}
 	}
 	return executions
+}
+
+func openCodeChildLinked(executions []openCodeExecution) bool {
+	if len(executions) == 0 {
+		return false
+	}
+	for _, execution := range executions {
+		if execution.parentExec == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func openCodeParentFor(childExecs []openCodeExecution, index int, executions map[string][]openCodeExecution, messages []openCodeMessage) string {

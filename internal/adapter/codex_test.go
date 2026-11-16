@@ -55,6 +55,56 @@ func TestCodexReuseAndDescendants(t *testing.T) {
 	}
 }
 
+func TestCodexUsageWithoutTurnIDStaysUnattributed(t *testing.T) {
+	root := moduleRoot(t)
+	source := filepath.Join(root, "testdata/codex/native/records/r1/sessions/2026/01/01/rollout-2026-01-01T20-33-36-8f89828d-ffe7-73df-8c40-fc37fa99eb91.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var removed int64
+	var out []byte
+	changed := false
+	for _, line := range splitLines(raw) {
+		if !changed && contains(string(line), "token_usage_record") {
+			var record map[string]any
+			if err := json.Unmarshal(line, &record); err != nil {
+				t.Fatal(err)
+			}
+			payload := record["payload"].(map[string]any)
+			usage := payload["usage"].(map[string]any)
+			removed = int64(usage["total_tokens"].(float64))
+			delete(payload, "turn_id")
+			rewritten, err := json.Marshal(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			line = rewritten
+			changed = true
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if !changed || removed == 0 {
+		t.Fatal("usage record to detach was not found")
+	}
+	path := filepath.Join(t.TempDir(), "detached.jsonl")
+	if err := os.WriteFile(path, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureCodex(t, "/root/capture_target", "", path)
+	assertTotal(t, got.Usage.Self, 40080-removed)
+	var unattributed int64
+	for _, usage := range got.UnattributedUsage {
+		if usage.Tokens.Total != nil {
+			unattributed += *usage.Tokens.Total
+		}
+	}
+	if got.Completeness == "complete" || unattributed != removed || !hasCode(got.Diagnostics, "unscoped_usage") {
+		t.Fatalf("usage without a turn id must stay outside the complete sum: self %+v unattributed %d diagnostics %+v", got.Usage.Self, unattributed, got.Diagnostics)
+	}
+}
+
 func TestCodexReferenceCollision(t *testing.T) {
 	dir := t.TempDir()
 	writeRollout(t, filepath.Join(dir, "older.jsonl"), "thread-older", "/root/same", "turn-older", 2, "2026-01-01T00:00:00.000Z")

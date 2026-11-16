@@ -468,10 +468,12 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 					event.EndDefinition = "turn_aborted envelope timestamp"
 				}
 				result.Events = append(result.Events, event)
-			case record.usage != nil && record.usage.TurnID != "":
-				model, ok := codexModel(thread, record.usage.TurnID)
-				if !ok {
-					model = ""
+			case record.usage != nil:
+				model := ""
+				if record.usage.TurnID != "" {
+					if resolved, ok := codexModel(thread, record.usage.TurnID); ok {
+						model = resolved
+					}
 				}
 				usageThread := record.usage.ThreadID
 				if usageThread == "" {
