@@ -77,6 +77,94 @@ func TestRunRejectsInvalidSourceWithoutFallback(t *testing.T) {
 	}
 }
 
+func TestCodexCLIMeasuresReturnedPath(t *testing.T) {
+	records := filepath.Join(moduleRoot(t), "testdata/codex/native/records/r1/sessions")
+	stdout, code := collectCLI(t, "codex", "/root/capture_target", "", records)
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stdout)
+	}
+	decoded := decodeReport(t, []byte(stdout))
+	if decoded["completeness"] != "complete" || decoded["status"] != "completed" {
+		t.Fatalf("report: %s", stdout)
+	}
+	if usageTotal(t, decoded, "self") != 40080 || usageTotal(t, decoded, "subtree") != 40080 || elapsedOf(t, decoded) != 8994 {
+		t.Fatalf("metrics: %s", stdout)
+	}
+}
+
+func TestCodexCLISelectsReusedExecution(t *testing.T) {
+	records := filepath.Join(moduleRoot(t), "testdata/codex/native/records/default/sessions")
+	stdout, code := collectCLI(t, "codex", "/root/capture_target", "", records)
+	if code != 1 {
+		t.Fatalf("ambiguous reuse exit %d\n%s", code, stdout)
+	}
+	decoded := decodeReport(t, []byte(stdout))
+	diagnostics := decoded["diagnostics"].([]any)
+	if decoded["completeness"] != "incomplete" || diagnostics[0].(map[string]any)["code"] != "ambiguous_execution" {
+		t.Fatalf("ambiguous report: %s", stdout)
+	}
+	stdout, code = collectCLI(t, "codex", "/root/capture_target", "b16afe9d-0ec9-7c62-80d5-b12717dbd878", records)
+	if code != 0 {
+		t.Fatalf("selected execution exit %d\n%s", code, stdout)
+	}
+	decoded = decodeReport(t, []byte(stdout))
+	if usageTotal(t, decoded, "self") != 82419 || usageTotal(t, decoded, "subtree") != 122782 || elapsedOf(t, decoded) != 43699 {
+		t.Fatalf("T.B metrics: %s", stdout)
+	}
+}
+
+func collectCLI(t *testing.T, product, agent, execution, records string) (string, int) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	args := []string{"agent-metrics", "collect", "--product", product, "--agent", agent, "--records", records}
+	if execution != "" {
+		args = append(args, "--execution", execution)
+	}
+	code := run(args, &stdout, &stderr)
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr: %s", stderr.String())
+	}
+	return stdout.String(), code
+}
+
+func usageTotal(t *testing.T, report map[string]any, scope string) float64 {
+	t.Helper()
+	usage := report["usage"].(map[string]any)[scope].([]any)
+	var sum float64
+	for _, item := range usage {
+		tokens := item.(map[string]any)["tokens"].(map[string]any)
+		sum += tokens["total"].(float64)
+	}
+	return sum
+}
+
+func elapsedOf(t *testing.T, report map[string]any) float64 {
+	t.Helper()
+	value := report["timing"].(map[string]any)["elapsed_milliseconds"]
+	if value == nil {
+		t.Fatal("elapsed is null")
+	}
+	return value.(float64)
+}
+
+func moduleRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("go.mod not found")
+		}
+		dir = parent
+	}
+}
+
 func decodeReport(t *testing.T, raw []byte) map[string]any {
 	t.Helper()
 	var decoded map[string]any

@@ -31,7 +31,6 @@ func (codex) Name() string      { return "codex" }
 func (openCode) Name() string   { return "opencode-v2" }
 
 func (claudeCode) Read(Request) (ReadResult, error) { return unsupported("claude-code") }
-func (codex) Read(Request) (ReadResult, error)      { return unsupported("codex") }
 func (openCode) Read(Request) (ReadResult, error)   { return unsupported("opencode-v2") }
 
 func unsupported(product string) (ReadResult, error) {
