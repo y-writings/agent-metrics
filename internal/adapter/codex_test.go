@@ -109,6 +109,89 @@ func TestCodexMissingChildCounterStaysPartialInSubtree(t *testing.T) {
 	}
 }
 
+func TestCodexTurnTotalMismatchStaysPartial(t *testing.T) {
+	root := moduleRoot(t)
+	source := filepath.Join(root, "testdata/codex/native/records/r1/sessions/2026/01/01/rollout-2026-01-01T20-33-36-8f89828d-ffe7-73df-8c40-fc37fa99eb91.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	removed := false
+	for _, line := range splitLines(raw) {
+		if !removed && contains(string(line), "token_usage_record") {
+			removed = true
+			continue
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if !removed {
+		t.Fatal("usage record to remove was not found")
+	}
+	path := filepath.Join(t.TempDir(), "short-turn.jsonl")
+	if err := os.WriteFile(path, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureCodex(t, "/root/capture_target", "", path)
+	assertTotal(t, got.Usage.Self, 20064)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" || !hasCode(got.Diagnostics, "turn_total_mismatch") {
+		t.Fatalf("a response subtotal below turn_token_usage must stay partial: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 8994 {
+		t.Fatalf("elapsed: %+v", got.Timing)
+	}
+}
+
+func TestCodexMissingResponseIDStaysPartial(t *testing.T) {
+	root := moduleRoot(t)
+	source := filepath.Join(root, "testdata/codex/native/records/r1/sessions/2026/01/01/rollout-2026-01-01T20-33-36-8f89828d-ffe7-73df-8c40-fc37fa99eb91.jsonl")
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	copied := false
+	for _, line := range splitLines(raw) {
+		if !copied && contains(string(line), "token_usage_record") {
+			copied = true
+			out = append(out, withoutResponseID(t, line)...)
+			out = append(out, '\n')
+		}
+		if contains(string(line), "token_usage_record") && copied {
+			line = withoutResponseID(t, line)
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	if !copied {
+		t.Fatal("usage record to duplicate was not found")
+	}
+	path := filepath.Join(t.TempDir(), "unkeyed-duplicate.jsonl")
+	if err := os.WriteFile(path, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := measureCodex(t, "/root/capture_target", "", path)
+	assertTotal(t, got.Usage.Self, 60096)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" || !hasCode(got.Diagnostics, "missing_response_id") {
+		t.Fatalf("lines without a response id must not be a complete distinct total: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+}
+
+func withoutResponseID(t *testing.T, line []byte) []byte {
+	t.Helper()
+	var record map[string]any
+	if err := json.Unmarshal(line, &record); err != nil {
+		t.Fatal(err)
+	}
+	delete(record["payload"].(map[string]any), "response_id")
+	rewritten, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rewritten
+}
+
 func TestCodexMetadataOnlyChildStaysMissing(t *testing.T) {
 	root := moduleRoot(t)
 	source := filepath.Join(root, "testdata/codex/native/records/default/sessions")

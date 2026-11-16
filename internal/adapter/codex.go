@@ -114,11 +114,25 @@ type codexTurnContext struct {
 
 type codexUsage struct {
 	ThreadID, TurnID, ResponseID string
-	Tokens                       codexCounters
+	Tokens, Turn                 codexCounters
+	HasTurn                      bool
 }
 
 type codexCounters struct {
 	Input, CacheRead, CacheWrite, Output, Reasoning, Total *int64
+}
+
+type codexCounterJSON struct {
+	Input      *int64 `json:"input_tokens"`
+	CacheRead  *int64 `json:"cached_input_tokens"`
+	CacheWrite *int64 `json:"cache_write_input_tokens"`
+	Output     *int64 `json:"output_tokens"`
+	Reasoning  *int64 `json:"reasoning_output_tokens"`
+	Total      *int64 `json:"total_tokens"`
+}
+
+func (counters codexCounterJSON) counters() codexCounters {
+	return codexCounters{counters.Input, counters.CacheRead, counters.CacheWrite, counters.Output, counters.Reasoning, counters.Total}
 }
 
 type codexItem struct {
@@ -217,17 +231,11 @@ func parseCodexLine(line int, raw string) (codexRecord, bool) {
 		record.context = &codexTurnContext{TurnID: payload.TurnID, Model: payload.Model}
 	case "token_usage_record":
 		var payload struct {
-			ThreadID   string `json:"thread_id"`
-			TurnID     string `json:"turn_id"`
-			ResponseID string `json:"response_id"`
-			Usage      struct {
-				Input      *int64 `json:"input_tokens"`
-				CacheRead  *int64 `json:"cached_input_tokens"`
-				CacheWrite *int64 `json:"cache_write_input_tokens"`
-				Output     *int64 `json:"output_tokens"`
-				Reasoning  *int64 `json:"reasoning_output_tokens"`
-				Total      *int64 `json:"total_tokens"`
-			} `json:"usage"`
+			ThreadID   string            `json:"thread_id"`
+			TurnID     string            `json:"turn_id"`
+			ResponseID string            `json:"response_id"`
+			Usage      codexCounterJSON  `json:"usage"`
+			Turn       *codexCounterJSON `json:"turn_token_usage"`
 		}
 		if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
 			record.unknown = true
@@ -235,7 +243,11 @@ func parseCodexLine(line int, raw string) (codexRecord, bool) {
 		}
 		record.usage = &codexUsage{
 			ThreadID: payload.ThreadID, TurnID: payload.TurnID, ResponseID: payload.ResponseID,
-			Tokens: codexCounters{payload.Usage.Input, payload.Usage.CacheRead, payload.Usage.CacheWrite, payload.Usage.Output, payload.Usage.Reasoning, payload.Usage.Total},
+			Tokens: payload.Usage.counters(),
+		}
+		if payload.Turn != nil {
+			record.usage.HasTurn = true
+			record.usage.Turn = payload.Turn.counters()
 		}
 		record.threadID = payload.ThreadID
 	case "event_msg":
@@ -435,6 +447,7 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 		if thread != nil {
 			provider = thread.provider
 		}
+		turns := map[string]*codexTurnCheck{}
 		if provider == "" {
 			result.Diagnostics = append(result.Diagnostics, Diagnostic{
 				Code: "unknown_provider", Message: "session metadata has no model provider", Scope: "agent", AgentID: threadID, Metric: "provider",
@@ -486,6 +499,30 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 					Input: record.usage.Tokens.Input, CacheRead: record.usage.Tokens.CacheRead, CacheWrite: record.usage.Tokens.CacheWrite,
 					Output: record.usage.Tokens.Output, Reasoning: record.usage.Tokens.Reasoning, Total: record.usage.Tokens.Total,
 				})
+				key := usageThread + "|" + record.usage.TurnID
+				check := turns[key]
+				if check == nil {
+					check = &codexTurnCheck{session: usageThread, execution: record.usage.TurnID, provider: provider, responses: map[string]*codexResponseRoll{}}
+					turns[key] = check
+				}
+				if model != "" {
+					check.model = model
+				}
+				if record.usage.ResponseID == "" {
+					check.missingID = true
+				} else {
+					roll := check.responses[record.usage.ResponseID]
+					if roll == nil {
+						check.order = append(check.order, record.usage.ResponseID)
+						check.responses[record.usage.ResponseID] = &codexResponseRoll{tokens: record.usage.Tokens}
+					} else if !sameCodexCounters(roll.tokens, record.usage.Tokens) {
+						roll.conflict = true
+					}
+				}
+				if record.usage.HasTurn {
+					check.turn = record.usage.Turn
+					check.hasTurn = true
+				}
 			case record.item != nil && record.item.AgentThreadID != "" && record.item.Kind != "returned":
 				key := record.item.AgentThreadID + "|" + record.item.TurnID
 				if seenActivity[key] {
@@ -494,6 +531,32 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 				seenActivity[key] = true
 				activities = append(activities, codexItemRef{parent: threadID, turn: record.item.TurnID, childThread: record.item.AgentThreadID, childPath: record.item.AgentPath, sourceID: sourceID})
 			}
+		}
+		for _, check := range turns {
+			if check.missingID && check.execution != "" {
+				result.Diagnostics = append(result.Diagnostics, Diagnostic{
+					Code: "missing_response_id", Message: "usage has no response id, so repeated lines cannot be collapsed",
+					Scope: "execution", AgentID: check.session, Metric: "usage",
+					Execution: &ExecutionRef{AgentID: check.session, ExecutionID: check.execution},
+				})
+				result.Events = append(result.Events, Event{
+					ID: check.execution + ":missing-response-id", Session: check.session, SourceSession: check.session, Execution: check.execution, Kind: "usage",
+				})
+			}
+			if !check.hasTurn || check.execution == "" || sameCodexCounters(check.responseSum(), check.turn) {
+				continue
+			}
+			result.Diagnostics = append(result.Diagnostics, Diagnostic{
+				Code: "turn_total_mismatch", Message: "response subtotal does not match turn_token_usage; the cumulative snapshot was not added",
+				Scope: "execution", AgentID: check.session, Metric: "usage",
+				Execution: &ExecutionRef{AgentID: check.session, ExecutionID: check.execution},
+			})
+			result.Events = append(result.Events, Event{
+				ID: check.execution + ":turn-total", UsageID: "turn:" + check.execution, Session: check.session, SourceSession: check.session,
+				Execution: check.execution, Kind: "usage", Cumulative: true, Provider: check.provider, Model: check.model,
+				Input: check.turn.Input, CacheRead: check.turn.CacheRead, CacheWrite: check.turn.CacheWrite,
+				Output: check.turn.Output, Reasoning: check.turn.Reasoning, Total: check.turn.Total,
+			})
 		}
 	}
 	linked := map[string]bool{}
@@ -522,6 +585,68 @@ func buildCodexResult(target string, included map[string]bool, index codexIndex,
 
 type codexItemRef struct {
 	parent, turn, childThread, childPath, sourceID string
+}
+
+type codexResponseRoll struct {
+	tokens   codexCounters
+	conflict bool
+}
+
+type codexTurnCheck struct {
+	session, execution, provider, model string
+	responses                           map[string]*codexResponseRoll
+	order                               []string
+	missingID, hasTurn                  bool
+	turn                                codexCounters
+}
+
+func (check *codexTurnCheck) responseSum() codexCounters {
+	var rows []codexCounters
+	for _, id := range check.order {
+		roll := check.responses[id]
+		if roll.conflict {
+			continue
+		}
+		rows = append(rows, roll.tokens)
+	}
+	return sumCodexCounters(rows)
+}
+
+func sumCodexCounters(rows []codexCounters) codexCounters {
+	return codexCounters{
+		Input:      foldCodexField(rows, func(row codexCounters) *int64 { return row.Input }),
+		CacheRead:  foldCodexField(rows, func(row codexCounters) *int64 { return row.CacheRead }),
+		CacheWrite: foldCodexField(rows, func(row codexCounters) *int64 { return row.CacheWrite }),
+		Output:     foldCodexField(rows, func(row codexCounters) *int64 { return row.Output }),
+		Reasoning:  foldCodexField(rows, func(row codexCounters) *int64 { return row.Reasoning }),
+		Total:      foldCodexField(rows, func(row codexCounters) *int64 { return row.Total }),
+	}
+}
+
+func foldCodexField(rows []codexCounters, get func(codexCounters) *int64) *int64 {
+	if len(rows) == 0 {
+		return nil
+	}
+	var sum int64
+	for _, row := range rows {
+		value := get(row)
+		if value == nil {
+			return nil
+		}
+		sum += *value
+	}
+	return &sum
+}
+
+func sameCodexCounters(a, b codexCounters) bool {
+	return sameCodexField(a.Input, b.Input) && sameCodexField(a.CacheRead, b.CacheRead) && sameCodexField(a.CacheWrite, b.CacheWrite) && sameCodexField(a.Output, b.Output) && sameCodexField(a.Reasoning, b.Reasoning) && sameCodexField(a.Total, b.Total)
+}
+
+func sameCodexField(a, b *int64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func codexModel(thread *codexThread, turnID string) (string, bool) {

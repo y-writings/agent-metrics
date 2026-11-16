@@ -87,7 +87,9 @@ live の標準保存先での接続確認は未実施であり、fixture 再生�
 * 経過時間は `task_started` から `task_complete` または `turn_aborted` までの
   envelope timestamp の差。`duration_ms` やログ最終行の時刻は使わない。
 * usage は `token_usage_record.usage` を `(thread, turn, response)` ごとに 1 回。
-  `turn_token_usage`、`thread_token_usage`、`token_count` は照合用で足さない。
+  `turn_token_usage` と `thread_token_usage`、`token_count` は照合用で足さない。
+  増分の和が最後の `turn_token_usage` と違うときは `turn_total_mismatch` で partial にし、累積値は消費に加えない。
+  `response_id` が無い行は数値を残し、`missing_response_id` で partial にする。行番号を別 response の証明にはしない。
   provider は `session_meta.model_provider`、モデルは `turn_context.model`。
 
 ## OpenCode V2 2.2.1
@@ -129,6 +131,8 @@ DB を作らない。WAL の committed 行は本体ファイルだけをコピ�
 | `missing_boundary` / `invalid_boundary` | 終端が無い、または終端が開始より前 |
 | `unknown_provider` / `unknown_model` | 帰属が記録に無い。数値は残す |
 | `duplicate_conflict` | 同じ response/message の usage が一致しない |
+| `missing_response_id` | Codex usage に response id が無く、重複を確定できない |
+| `turn_total_mismatch` | response 増分の和が `turn_token_usage` と一致しない。累積値は足さない |
 | `missing_message_id` | assistant usage に message id が無く、重複を確定できない |
 | `unknown_counter` | 同じモデルの subtree 合算で、一部の実行だけ counter が欠けている |
 | `unsupported_record` | 計測に必要な未知の record type |
