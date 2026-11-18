@@ -68,11 +68,11 @@ type openCodeCounters struct {
 }
 
 type openCodeExecution struct {
-	id, session, parentExec, status string
-	start, end                      int64
-	startID, endID                  string
-	usage, assistants               []openCodeMessage
-	confirmed, fresh, missingUsage  bool
+	id, session, parentExec, status               string
+	start, end                                    int64
+	startID, endID                                string
+	usage, assistants                             []openCodeMessage
+	confirmed, fresh, missingUsage, usageMismatch bool
 }
 
 func readOpenCodeDB(path string) (map[string]openCodeSession, []openCodeMessage, error) {
@@ -211,6 +211,13 @@ func buildOpenCodeResult(target string, included map[string]bool, sessions map[s
 					CacheRead: usage.tokens.cacheRead, CacheWrite: usage.tokens.cacheWrite,
 				})
 			}
+			if execution.usageMismatch {
+				result.Diagnostics = append(result.Diagnostics, Diagnostic{
+					Code: "session_usage_mismatch", Message: "response usage does not match the fresh session counters",
+					Scope: "execution", AgentID: sessionID, Metric: "usage",
+					Execution: &ExecutionRef{AgentID: sessionID, ExecutionID: execution.id},
+				})
+			}
 			if execution.missingUsage {
 				result.Events = append(result.Events, Event{
 					ID: execution.id + ":missing-usage", Session: sessionID, SourceSession: sessionID, Execution: execution.id, Kind: "usage",
@@ -296,10 +303,47 @@ func openCodeExecutions(session openCodeSession, messages []openCodeMessage) ([]
 			}}
 			missing = false
 		}
+		if executions[index].fresh && len(usage) > 0 && openCodeUsageMismatch(usage, session.cumulative) {
+			executions[index].usageMismatch = true
+			missing = true
+		}
 		executions[index].usage = usage
 		executions[index].missingUsage = missing
 	}
 	return executions, unscoped
+}
+
+func openCodeUsageMismatch(usage []openCodeMessage, cumulative openCodeCounters) bool {
+	seen := map[string]bool{}
+	var responses []*openCodeCounters
+	for _, message := range usage {
+		id := openCodeUsageID(message)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		responses = append(responses, message.tokens)
+	}
+	return openCodeCounterMismatch(cumulative.input, responses, func(tokens *openCodeCounters) *int64 { return tokens.input }) ||
+		openCodeCounterMismatch(cumulative.output, responses, func(tokens *openCodeCounters) *int64 { return tokens.output }) ||
+		openCodeCounterMismatch(cumulative.reasoning, responses, func(tokens *openCodeCounters) *int64 { return tokens.reasoning }) ||
+		openCodeCounterMismatch(cumulative.cacheRead, responses, func(tokens *openCodeCounters) *int64 { return tokens.cacheRead }) ||
+		openCodeCounterMismatch(cumulative.cacheWrite, responses, func(tokens *openCodeCounters) *int64 { return tokens.cacheWrite })
+}
+
+func openCodeCounterMismatch(cumulative *int64, responses []*openCodeCounters, counter func(*openCodeCounters) *int64) bool {
+	if cumulative == nil {
+		return false
+	}
+	var subtotal int64
+	for _, response := range responses {
+		value := counter(response)
+		if value == nil {
+			return false
+		}
+		subtotal += *value
+	}
+	return subtotal != *cumulative
 }
 
 func openCodeUsageByResponse(messages []openCodeMessage) ([]openCodeMessage, bool) {
