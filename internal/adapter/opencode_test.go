@@ -70,6 +70,28 @@ func TestOpenCodeMissingResponseUsageStaysPartial(t *testing.T) {
 	}
 }
 
+func TestOpenCodeMissingResponseRowStaysPartial(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(t.TempDir(), "missing-response-row.db")
+	copyFile(t, filepath.Join(root, "testdata/opencode-v2/native/records/r1.db"), path)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`DELETE FROM session_message WHERE id = ?`, "msg_2ou44EfXGCu7cZCEaovIsRGV3h"); err != nil {
+		t.Fatal(err)
+	}
+	got := measureOpenCode(t, "ses_PB9VT4cvOsLHQ6DcmPDil2WAEe", "", path)
+	assertOpenCode(t, got.Usage.Self, 1559, 45, 49, 22656, 0)
+	if got.Completeness != "partial" || got.Usage.SelfCompleteness != "partial" || got.Usage.SubtreeCompleteness != "partial" || !hasCode(got.Diagnostics, "session_usage_mismatch") {
+		t.Fatalf("missing response row must not leave a fresh-session subtotal complete: %+v diagnostics %+v", got.Usage, got.Diagnostics)
+	}
+	if got.Timing.ElapsedMilliseconds == nil || *got.Timing.ElapsedMilliseconds != 10099 {
+		t.Fatalf("missing usage row must not change execution timing: %+v", got.Timing)
+	}
+}
+
 func TestOpenCodeMissingStartKeepsUsage(t *testing.T) {
 	root := moduleRoot(t)
 	path := filepath.Join(t.TempDir(), "missing-start.db")

@@ -110,6 +110,8 @@ P→T→G が実際に作られた経路。根拠は
 * message usage が欠けていても、session 作成時刻がその user の直前であり、
   記録上その session の user が 1 件だけであるときだけ、session の累積値を
   ゼロ baseline の増分として使う。過去の message を消して残った 1 件は新規とみなさない。
+  同じ条件で response の使用量が残る場合は累積値と照合し、不一致なら
+  `session_usage_mismatch` で partial にする。累積値は重ねて足さない。
 
 読取は存在するファイルを `mode=ro` の read transaction で行う。ファイルが無いときに
 DB を作らない。WAL の committed 行は本体ファイルだけをコピーして読まない。
@@ -133,6 +135,7 @@ DB を作らない。WAL の committed 行は本体ファイルだけをコピ�
 | `duplicate_conflict` | 同じ response/message の usage が一致しない |
 | `missing_response_id` | Codex usage に response id が無く、重複を確定できない |
 | `turn_total_mismatch` | response 増分の和が `turn_token_usage` と一致しない。累積値は足さない |
+| `session_usage_mismatch` | 新規 OpenCode session の response 使用量と累積値が一致しない |
 | `missing_message_id` | assistant usage に message id が無く、重複を確定できない |
 | `unknown_counter` | 同じモデルの subtree 合算で、一部の実行だけ counter が欠けている |
 | `unsupported_record` | 計測に必要な未知の record type |
